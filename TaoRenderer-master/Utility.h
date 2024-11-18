@@ -16,11 +16,11 @@ using namespace std;
 #pragma region 文件操作
 
 // 获取文件的后缀，如： .obj
-inline string GetFileExtention(const string& file_name) {
+inline string GetFileExtension(const string& file_name) {
 	return file_name.substr(file_name.find_last_of('.'));
 }
 // 获取文件的名称，无后缀
-inline string GetFileName(const string& file_name) {
+inline string GetFileNameWithoutExtension(const string& file_name) {
 	// 先找到最后一个 ‘ / ’，之后才是文件名与扩展名
 	string name;
 	string::size_type start_pos = file_name.find_last_of('/') + 1;
@@ -38,7 +38,7 @@ inline string GetFileFolder(const std::string& file_name)
 }
 
 // 在指定文件夹中检索名字中包含file_name的文件，并返回完整路径
-inline string GetFilePathByFileName(const string& file_folder, string& file_name) {
+inline string GetFilePathByFileName(const string& file_folder, const string& file_name) {
 	string complete_path;
 	long long h_file; // 文件句柄
 	struct _finddata_t file_info; // 文件嘻嘻
