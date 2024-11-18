@@ -2,6 +2,7 @@
 #include <cstdio>
 #include "Vector.h"
 #include "Matrix.h"
+#include "Math.h"
 
 
 int main() {
@@ -13,6 +14,8 @@ int main() {
 	Matrix<1, 4, int> m1 = { a };
 	Matrix<4, 1, int> m2 = { d,d,d,d };
 
-	std:: cout << m2 * m1 << std::endl;
+	Mat4x4f m_ortho = matrix_set_orthograhpic(10,-10,10,-10,10,-10);
+
+	std:: cout << m_ortho << std::endl;
 
 }

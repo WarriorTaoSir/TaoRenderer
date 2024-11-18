@@ -5,8 +5,9 @@
 using namespace std;
 
 /*
-	文件内容：包含了向量定义，向量运算和向量函数三部分
-	最近一次修改日期：2024.11.15
+	文件内容：
+	向量定义，向量运算和向量函数三部分
+	-最近一次修改日期：2024.11.15
 */
 
 #pragma region 向量定义
@@ -275,7 +276,7 @@ inline T vector_cross(const Vector<2, T>& a, const Vector<2, T>& b) {
 // 三维向量叉乘，得到新向量
 template<typename T>
 inline Vector<3, T> vector_cross(const Vector<3, T>& a, const Vector<3, T>& b) {
-	return Vector3<3, T>(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+	return Vector<3, T>(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
 }
 
 // 四维向量叉乘：前三维叉乘，后一位保留
