@@ -3,8 +3,9 @@
 #include "Vector.h"
 
 /*
-	文件内容：包含了矩阵定义，矩阵运算和矩阵函数三部分
-	最近一次修改日期：2024.11.15
+	文件内容：
+	-矩阵定义，矩阵运算和矩阵函数三部分
+	-最近一次修改日期：2024.11.15
 */
 
 #pragma region 矩阵定义
@@ -64,6 +65,16 @@ template<size_t ROW, size_t COL, typename T> struct Matrix {
 			for (size_t c = 0; c < COL - 1; c++) {
 				ret.m[r][c] = m[r < row ? r : r + 1][c < col ? c : c + 1];
 			}
+		}
+		return ret;
+	}
+
+	// 取得转置矩阵
+	inline Matrix<COL, ROW, T> Transpose() const {
+		Matrix<COL, ROW, T> ret;
+		for (size_t r = 0; r < ROW; r++) {
+			for (size_t c = 0; c < COL; c++)
+				ret.m[c][r] = m[r][c];
 		}
 		return ret;
 	}

@@ -64,7 +64,7 @@ THE SOFTWARE.
 #include <string>
 #include <vector>
 
-#include "../MoRenderer/MoRenderer.h"
+//#include "../TaoRenderer/TaoRenderer.h"
 
 namespace tinyobj {
 

@@ -35,7 +35,7 @@ template <typename T> struct Vector<2, T> {
 	inline Vector() : x(T()), y(T()) {}     // 无参初始化
 	inline Vector(T X) : x(X), y(X) {}		// 单参数初始化
 	inline Vector(T X, T Y) : x(X), y(Y) {} // 双参数初始化
-	inline Vector(const Vector<2, T>& v) : x(v.x), y(v, y) {}	// 同类型初始化
+	inline Vector(const Vector<2, T>& v) : x(v.x), y(v.y) {}	// 同类型初始化
 	inline Vector(const T* ptr) : x(ptr[0]), y(ptr[1]) {}		// T类型指针初始化
 	inline const T& operator[] (size_t i) const{ assert(i < 2); return m[i]; } // 确保 i 的合法性
 	inline T& operator[] (size_t i) { assert(i < 2); return m[i]; }
