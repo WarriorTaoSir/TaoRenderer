@@ -4,6 +4,9 @@
 #include "Math.h"
 #include "Texture.h"
 
+using std::string;
+using std::vector;
+
 /*
 	文件内容：
 	-模型类的声明
@@ -30,9 +33,9 @@ public:
 	Texture* base_color_map_;				// 基础颜色贴图
 	Texture* normal_map_;					// 法线贴图
 	//Texture* roughness_map_;				// 粗糙度贴图
-	//Texture* metallic_map_;					// 金属度贴图
+	//Texture* metallic_map_;				// 金属度贴图
 	//Texture* occlusion_map_;				// 自遮蔽贴图
-	//Texture* emission_map_;					// 自发光贴图
+	//Texture* emission_map_;				// 自发光贴图
 
 	bool has_tangent_;
 public:

@@ -1,7 +1,9 @@
 #pragma once
 #include <map>
 #include <Windows.h>
+#include <string>
 #include "Math.h"
+
 
 /*
 	ÎÄ¼şÄÚÈİ£º

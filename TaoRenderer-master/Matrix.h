@@ -177,9 +177,10 @@ inline Matrix<ROW, NEWCOL, T> operator * (const Matrix<ROW, COL, T>& a, const Ma
 // 矩阵除以标量
 template<size_t ROW, size_t COL, typename T>
 inline Matrix<ROW, COL, T> operator / (const Matrix<ROW, COL, T>& a, T x) {
+	assert(x != 0);
 	Matrix<ROW, COL, T> ans;
-	for (size_t i = 0; i < ROW; i++)
-		for (size_t j = 0; i < COL; j++)
+	for (size_t j = 0; j < ROW; j++)
+		for (size_t i = 0; i < COL; i++)
 			ans.m[i][j] = a.m[i][j] / x;
 
 	return ans;
@@ -278,10 +279,10 @@ inline Matrix<N, N, T> matrix_invert(const Matrix<N, N, T>& m) {
 
 // 文本流输出
 template<size_t ROW, size_t COL, typename T>
-inline ostream& operator << (ostream& os, const Matrix<ROW, COL, T>& m) {
+inline std::ostream& operator << (std::ostream& os, const Matrix<ROW, COL, T>& m) {
 	for (size_t r = 0; r < ROW; r++) {
 		Vector<COL, T>row = m.Row(r);
-		os << row << endl;
+		os << row << std::endl;
 	}
 	return os;
 }

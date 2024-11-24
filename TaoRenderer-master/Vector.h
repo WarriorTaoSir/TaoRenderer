@@ -2,7 +2,6 @@
 
 #include <iostream>
 #include <assert.h>
-using namespace std;
 
 /*
 	文件内容：
@@ -18,7 +17,7 @@ template <size_t N, typename T> struct Vector {
 	Vector() { for (size_t i = 0; i < N; i++) m[i] = T(); } // 无参初始化
 	explicit Vector(const T* ptr) { for (size_t i = 0; i < N; i++) m[i] = ptr[i]; } // 用首元素的地址/指针初始化
 	Vector(const Vector<N, T>& v) { for (size_t i = 0; i < N; i++) m[i] = v.m[i]; } // 用同类型变量初始化
-	Vector(const initializer_list<T>& l) { auto it = l.begin(); for (size_t i = 0; i < N; i++) m[i] = *it++; } // 使用初始化列表
+	Vector(const std::initializer_list<T>& l) { auto it = l.begin(); for (size_t i = 0; i < N; i++) m[i] = *it++; } // 使用初始化列表
 	const T& operator[] (size_t i) const { assert(i < N); return m[i]; }      // 确保 i 的合法性
 	T& operator[] (size_t i) { assert(i < N); return m[i]; }
 	void load(const T* ptr) { for (size_t i = 0; i < N; i++) m[i] = ptr[i]; } // 将参数向量加载到本向量中

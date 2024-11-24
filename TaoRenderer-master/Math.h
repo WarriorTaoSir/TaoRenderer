@@ -102,6 +102,15 @@ inline static Mat4x4f matrix_set_translate(const float x, const float y, const f
 	return m;
 }
 
+// 缩放变换
+inline static Mat4x4f matrix_set_scale(const float x, const float y, const float z) {
+	Mat4x4f m = matrix_set_identity();
+	m.m[0][0] = x;
+	m.m[1][1] = y;
+	m.m[2][2] = z;
+	return m;
+}
+
 // 旋转变换, 围绕（x,y,z）矢量旋转theta角度
 inline static Mat4x4f matrix_set_rotate(float x, float y, float z, float theta) {
 	float qsin = (float)sin(theta * 0.5f);
@@ -158,19 +167,19 @@ inline static Mat4x4f matrix_look_at(const Vec3f& camera_position, const Vec3f& 
 	0		0		2/(n-f)		-(n+f)/(n-f)
 	0		0		0			1
 */
-inline static Mat4x4f matrix_set_orthograhpic(float right, float left, float top, float bottom, float near, float far) {
-	Mat4x4f m = matrix_set_zero();
-
-	m.m[0][0] = 2 / (right - left);
-	m.m[1][1] = 2 / (top - bottom);
-	m.m[2][2] = 2 / (near - far);
-	m.m[3][3] = 1;
-	m.m[0][3] = -(right + left) / (right - left);
-	m.m[1][3] = -(top + bottom) / (top - bottom);
-	m.m[2][3] = -(near + far) / (near - far);
-
-	return m;
-}
+//inline static Mat4x4f matrix_set_orthograhpic(float right, float left, float top, float bottom, float near, float far) {
+//	Mat4x4f m = matrix_set_zero();
+//
+//	m.m[0][0] = 2 / (right - left);
+//	m.m[1][1] = 2 / (top - bottom);
+//	m.m[2][2] = 2 / (near - far);
+//	m.m[3][3] = 1;
+//	m.m[0][3] = - (right + left) / (right - left);
+//	m.m[1][3] = - (top + bottom) / (top - bottom);
+//	m.m[2][3] = - (near + far) / (near - far);
+//
+//	return m;
+//}
 
 /*
 	计算透视投影矩阵 (相机看向-z方向，右手坐标系)

@@ -3,6 +3,9 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
+using std::cout;
+using std::endl;
+
 /*
 	文件内容：
 	-模型类的定义

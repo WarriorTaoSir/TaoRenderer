@@ -4,7 +4,8 @@
 #include <fstream>
 #include <io.h>
 
-using namespace std;
+using std::string;
+using std::ifstream;
 
 #pragma region ÎÄ¼ş²Ù×÷
 /*

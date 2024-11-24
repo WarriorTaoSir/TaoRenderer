@@ -28,7 +28,7 @@ public:
 	unsigned char* texture_data_;	// 实际的图像数据指针， 根据宽，高，通道数来读取图片
 
 public:
-	Texture(const string& file_name); // 读取文件路径来初始化贴图
+	Texture(const std::string& file_name); // 读取文件路径来初始化贴图
 	~Texture();      
 
 	// 纹理采样
