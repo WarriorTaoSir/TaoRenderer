@@ -24,8 +24,8 @@ int main() {
 #pragma endregion
 
 #pragma region 外部资源加载
-	const auto scene = new Scene();
-	DataBuffer* dataBuffer = DataBuffer::GetInstance();
+	const auto scene = new Scene();						// 展示的场景
+	DataBuffer* dataBuffer = DataBuffer::GetInstance(); // 着色器所需数据
 
 	auto model = scene->current_model_; // 获取当前模型
 	dataBuffer->SetModel(scene->current_model_); // 给数据缓冲设置当前模型
@@ -67,24 +67,27 @@ int main() {
 
 #pragma endregion
 
-
+#pragma region 渲染循环
 
 	while (!window->is_close_) {
+
+		camera->HandleInputEvents(); // 响应相机位置
+		camera->UpdateUniformBuffer(dataBuffer->GetUniformBuffer(), dataBuffer->GetModel()->model_matrix_);
 
 #pragma region 渲染Model
 		// 设置渲染器所使用的shader
 		renderer->SetVertexShader(shader->vertex_shader_);
 
+		// 清除帧缓冲
+		renderer->ClearFrameBuffer(renderer->render_frame_, true);
 		// 使用渲染器将模型绘制到帧缓冲中
 		renderer->DrawMesh();
-
+#pragma endregion 
 		// 在窗口展示渲染器的帧缓冲
 		window->WindowDisplay(renderer->color_buffer_);
 
-
-#pragma endregion 
-		
 	}
+#pragma endregion 
 	
 	return 0;
 }

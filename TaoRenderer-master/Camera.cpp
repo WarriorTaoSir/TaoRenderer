@@ -80,6 +80,7 @@ void Camera::HandleInputEvents()
 	axis_r_ = vector_normalize(vector_cross(axis_v_, up_));
 	axis_u_ = vector_normalize(vector_cross(axis_r_, axis_v_));
 
+
 	// 处理输入事件
 	HandleMouseEvents();
 	HandleKeyEvents();
@@ -87,7 +88,8 @@ void Camera::HandleInputEvents()
 
 // 处理鼠标事件
 void Camera::HandleMouseEvents()
-{
+{	
+	
 	if (window_->mouse_buttons_[0] || window_->mouse_buttons_[1] || window_->mouse_buttons_[2])
 	{
 		const Vec2f mouse_position = window_->GetMousePosition();
@@ -100,7 +102,8 @@ void Camera::HandleMouseEvents()
 
 // 处理键盘输入事件
 void Camera::HandleKeyEvents()
-{
+{	
+	
 	const float distance = vector_length(target_ - position_);
 
 	if (window_->keys_['Q'])
