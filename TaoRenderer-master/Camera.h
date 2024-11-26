@@ -13,10 +13,12 @@
 class Camera
 {
 public:
-	Window* window_;
+	Window* window_;					// 窗口
+	DataBuffer* data_buffer_;			// 数据缓冲
 	Vec3f position_, origin_position_;	// 相机的世界空间位置
 	Vec3f target_, origin_target_;		// 相机看向的世界空间位置
-	Vec3f up_;							// 相机的up向量
+	Vec3f up_;
+	// 相机的up向量
 
 	/*
 		相机坐标系的轴

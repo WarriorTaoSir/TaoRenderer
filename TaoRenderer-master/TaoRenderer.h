@@ -3,6 +3,10 @@
 #include "Math.h"
 #include "Model.h"
 #include "Shader.h"
+#include "Scene.h"
+#include "Window.h"
+#include "DataBuffer.h"
+
 
 /*
 	文件内容：
@@ -17,7 +21,7 @@ public:
 	// 顶点结构体
 	struct Vertex {
 		bool has_transformed;			// 是否已经完成了顶点变换
-		Varings context;			    // 上下文
+		Varyings context;			    // 上下文
 		float w_reciprocal;				// w 的倒数
 		Vec4f position;					// 裁剪空间坐标	范围[-1,1]
 		Vec2f screen_position_f;		// 屏幕坐标		范围x~[0.5, frame_buffer_width_+ 0.5] y~[0.5, frame_buffer_height_+ 0.5]
@@ -41,7 +45,7 @@ public:
 		X_LEFT,
 		Y_TOP,
 		Y_BOTTOM,
-		Z_Near,
+		Z_NEAR,
 		Z_FAR
 	};
 
@@ -59,9 +63,10 @@ public:
 
 	// 渲染中使用的临时数据
 	Vertex vertex_[3];
-	Vertex* clip_vertex_[4];
+	Vertex* clip_vertex_[4];	// 经过近平面clip之后的顶点
 
-	DataBuffer* dataBuffer_;
+	DataBuffer* data_buffer_;	// 数据缓冲
+	Window* window_;			// 窗口
 
 private:
 	// VS 与 PS
@@ -111,8 +116,6 @@ public:
 	// 在颜色缓冲中绘制点
 	void SetPixel(const int x, const int y, const Vec4f& cc) const { SetBuffer(color_buffer_, x, y, cc); }
 	void SetPixel(const int x, const int y, const Vec3f& cc)const { SetBuffer(color_buffer_, x, y, cc.xyz1()); }
-	
-	// TODO:使用平面裁剪三角形
 
 	// TODO：绘制天空盒
 
@@ -127,4 +130,9 @@ private:
 	void DrawWireFrame(Vertex* vertex[3]) const;
 	// 光栅化三角形
 	void RasterizeTriangle(Vertex* vertex[3]);
+	// 用平面裁剪三角形
+	int ClipWithPlane(ClipPlane clip_plane, Vertex vertex[3]);
+	// 获取直线与平面的交点
+	Vertex& GetIntersectVertex(ClipPlane clip_plane, Vertex& v1, Vertex& v2);
+
 };

@@ -15,7 +15,7 @@
 
 #pragma region 相关结构体/定义
 // 着色器上下文，由 VS 设置，再由渲染器按像素逐点插值后，供 PS 读取
-struct Varings {
+struct Varyings {
 	std::map<int, float> varying_float;    // 浮点数 varying 列表
 	std::map<int, Vec2f> varying_vec2f;    // 二维矢量 varying 列表
 	std::map<int, Vec3f> varying_vec3f;    // 三维矢量 varying 列表
@@ -28,10 +28,10 @@ enum ShaderType
 };
 
 // 顶点着色器：返回顶点的裁剪空间坐标
-typedef std::function<Vec4f(int index, Varings& output)> VertexShader;
+typedef std::function<Vec4f(int index, Varyings& output)> VertexShader;
 
 // 像素着色器：返回像素的颜色
-typedef std::function<Vec4f(Varings& input)> PixelShader;
+typedef std::function<Vec4f(Varyings& input)> PixelShader;
 
 #pragma endregion
 
@@ -51,19 +51,19 @@ public:
 		//window_ = Window::GetInstance();
 		dataBuffer_ = DataBuffer::GetInstance();
 
-		vertex_shader_ = [&](const int index, Varings& output)->Vec4f
+		vertex_shader_ = [&](const int index, Varyings& output)->Vec4f
 			{
 				return VertexShaderFunction(index, output);
 			};
-		pixel_shader_ = [&](Varings& input)->Vec4f
+		pixel_shader_ = [&](Varyings& input)->Vec4f
 			{
 				return PixelShaderFunction(input);
 			};
 	}
 	virtual ~IShader() = default;
 
-	virtual Vec4f VertexShaderFunction(int index, Varings& output) const = 0;
-	virtual Vec4f PixelShaderFunction(Varings& input) const = 0;
+	virtual Vec4f VertexShaderFunction(int index, Varyings& output) const = 0;
+	virtual Vec4f PixelShaderFunction(Varyings& input) const = 0;
 	//virtual  void HandleKeyEvents() = 0;
 	
 };
@@ -89,6 +89,6 @@ public:
 
 public:
 	DefaultShader(UniformBuffer* uniform_buffer) : IShader(uniform_buffer) {}
-	Vec4f VertexShaderFunction(int index, Varings& output) const override;
-	Vec4f PixelShaderFunction(Varings& input) const override;
+	Vec4f VertexShaderFunction(int index, Varyings& output) const override;
+	Vec4f PixelShaderFunction(Varyings& input) const override;
 };

@@ -1,4 +1,5 @@
 #include "Camera.h"
+#include "DataBuffer.h"
 
 /*
 	文件内容：
@@ -10,7 +11,7 @@ Camera::Camera(const Vec3f& position, const Vec3f& target, const Vec3f& up, floa
 	position_(position), target_(target), up_(up), fov_(fov), aspect_(aspect)
 {	
 	// 相机远近平面设置，可以暴露为参数
-	near_plane_ = 0.4f; 
+	near_plane_ = 0.5f; 
 	far_plane_ = 1000.0f;
 
 	// 设置原位置与朝向，用于重设相机位置
@@ -19,6 +20,8 @@ Camera::Camera(const Vec3f& position, const Vec3f& target, const Vec3f& up, floa
 
 	// 窗口初始化
 	window_ = Window::GetInstance();
+	// 数据缓冲初始化
+	data_buffer_ = DataBuffer::GetInstance();
 }
 
 void Camera::UpdateCameraPose()
@@ -69,7 +72,7 @@ void Camera::UpdateCameraPose()
 
 // 处理鼠标与键盘的输入事件
 void Camera::HandleInputEvents()
-{
+{	
 	/*
 		计算相机坐标系的轴
 		axis_v：观察向量，从目标位置指向相机位置
@@ -84,6 +87,8 @@ void Camera::HandleInputEvents()
 	// 处理输入事件
 	HandleMouseEvents();
 	HandleKeyEvents();
+
+	UpdateUniformBuffer(data_buffer_->GetUniformBuffer(), data_buffer_->GetModel()->model_matrix_);
 }
 
 // 处理鼠标事件

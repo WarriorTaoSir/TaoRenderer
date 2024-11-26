@@ -4,12 +4,6 @@
 #include <cstdio>
 #include <ranges>
 
-/*
-	文件内容：
-	-窗口类的定义
-	-最近一次修改日期：2024.11.19
-*/
-
 Window* Window::window_ = nullptr;
 
 Window* Window::GetInstance()
@@ -203,7 +197,7 @@ void Window::WindowDrawFrame(const uint8_t* frame_buffer) const
 	memcpy(frame_buffer_, frame_buffer, width_ * height_ * 4);
 
 	//显示Log信息
-	if (log_messages_.empty()) {
+	if (!log_messages_.empty()) {
 		LOGFONT log_font;								//改变输出字体
 		ZeroMemory(&log_font, sizeof(LOGFONT));
 		log_font.lfCharSet = ANSI_CHARSET;

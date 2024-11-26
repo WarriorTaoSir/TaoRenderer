@@ -7,13 +7,13 @@
 */
 
 #pragma region Default Shader
-Vec4f DefaultShader::VertexShaderFunction(int index, Varings& output) const
+Vec4f DefaultShader::VertexShaderFunction(int index, Varyings& output) const
 {	
 	// 从DataBuffer中获取所需数据
 	UniformBuffer* uniform_buffer_ = dataBuffer_->GetUniformBuffer();
 	Attributes* attributes_ = dataBuffer_->attributes_;
 
-	// 
+	// 将模型空间变换至裁剪空间
 	Vec4f position_cs = uniform_buffer_->mvp_matrix * attributes_[index].position_os.xyz1();
 	const Vec3f position_ws = (uniform_buffer_->model_matrix * attributes_[index].position_os.xyz1()).xyz();
 	const Vec3f normal_ws = (uniform_buffer_->normal_matrix * attributes_[index].normal_os.xyz1()).xyz();
@@ -26,7 +26,7 @@ Vec4f DefaultShader::VertexShaderFunction(int index, Varings& output) const
 	return position_cs;
 }
 
-Vec4f DefaultShader::PixelShaderFunction(Varings& input) const {
+Vec4f DefaultShader::PixelShaderFunction(Varyings& input) const {
 	Vec3f display_color(0.f);
 	return display_color.xyz1();
 }

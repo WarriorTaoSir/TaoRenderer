@@ -45,7 +45,7 @@ int main() {
 	const auto uniform_buffer = new UniformBuffer();
 	uniform_buffer->model_matrix = model->model_matrix_;
 	uniform_buffer->view_matrix = matrix_look_at(camera_position, camera_target, camera_up);
-	uniform_buffer->project_matrix = matrix_set_perspective(fov, camera->aspect_, camera->near_plane_, camera->far_plane_);
+	//uniform_buffer->project_matrix = matrix_set_perspective(fov, camera->aspect_, camera->near_plane_, camera->far_plane_);
 	uniform_buffer->CalculateRestMatrix();
 
 	uniform_buffer->light_direction = { 0, -5, -2 };
@@ -70,16 +70,15 @@ int main() {
 #pragma region 渲染循环
 
 	while (!window->is_close_) {
-
-		camera->HandleInputEvents(); // 响应相机位置
-		camera->UpdateUniformBuffer(dataBuffer->GetUniformBuffer(), dataBuffer->GetModel()->model_matrix_);
+		// 响应相机位置
+		camera->HandleInputEvents(); 
+		// 清除帧缓冲
+		renderer->ClearFrameBuffer(renderer->render_frame_, true);
 
 #pragma region 渲染Model
 		// 设置渲染器所使用的shader
 		renderer->SetVertexShader(shader->vertex_shader_);
 
-		// 清除帧缓冲
-		renderer->ClearFrameBuffer(renderer->render_frame_, true);
 		// 使用渲染器将模型绘制到帧缓冲中
 		renderer->DrawMesh();
 #pragma endregion 
