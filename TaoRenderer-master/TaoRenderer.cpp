@@ -7,16 +7,15 @@
 /*
 	文件内容：
 	-渲染器类的定义
-	-最近一次修改日期：2024.11.24
+	-最近一次修改日期：2024.12.18
 */
 
 #pragma region 初始化与清除
 
 TaoRenderer::TaoRenderer(const int width, const int height) {
-	color_buffer_ = nullptr;
-	depth_buffer_ = nullptr;
 	render_frame_ = false;
 	render_pixel_ = true;
+	render_shadow_ = true;
 	Init(width, height);
 }
 
@@ -26,32 +25,35 @@ void TaoRenderer::Init(const int width, const int height)
 	// 设置一下渲染器宽和高
 	frame_buffer_width_ = width;
 	frame_buffer_height_ = height;
+	shadow_buffer_width_ = width;
+	shadow_buffer_height_ = height;
 
 	// 初始化前景色和背景色
 	color_foreground_ = Vec4f(0.0f);
-	color_background_ = Vec4f(0.5f, 1.0f, 1.0f, 1.0f);
-
-	color_buffer_ = new uint8_t[height * width * 4]; // RGBA 四通道
-	depth_buffer_ = new float* [height];  // 二维depthbuffer初始化
-	for (int i = 0; i < height; i++)
-		depth_buffer_[i] = new float[width];
+	color_background_ = Vec4f(0.0f);
+	//color_background_ = Vec4f(0.5f, 1.0f, 1.0f, 1.0f);
 
 	// 设置DataBuffer
 	data_buffer_ = DataBuffer::GetInstance();
 	window_ = Window::GetInstance();
 
+	// 数据缓冲初始化
+	data_buffer_->Init(height, width);
+
 	ClearFrameBuffer(true, true);
 }
 
 void TaoRenderer::CleanUp() {
-	delete [] color_buffer_;
-	delete [] depth_buffer_;
+
 }
 
 void TaoRenderer::ClearFrameBuffer(bool clear_color_buffer, bool clear_depth_buffer) const
-{
+{	
+	uint8_t* color_buffer_ = data_buffer_->color_buffer_;
+	float** depth_buffer_ = data_buffer_->depth_buffer_;
+
 	// 如果清除颜色缓冲，而且color_buffer_不为空，将颜色缓冲设置为背景色
-	if (clear_color_buffer && color_buffer_)
+	if (clear_color_buffer && data_buffer_->color_buffer_)
 	{
 		const ColorRGBA32Bit color_32_bit = vector_to_32bit_color(color_background_);
 
@@ -72,7 +74,7 @@ void TaoRenderer::ClearFrameBuffer(bool clear_color_buffer, bool clear_depth_buf
 	if (clear_depth_buffer && depth_buffer_) {
 		for (int j = 0; j < frame_buffer_height_; j++) {
 			for (int i = 0; i < frame_buffer_width_; i++)
-				depth_buffer_[j][i] = 0.0f;
+				depth_buffer_[j][i] = 0.f;
 		}
 	}
 }
@@ -137,7 +139,7 @@ bool IsInsidePlane(TaoRenderer::ClipPlane clip_plane, const Vec4f& vertex)
 
 TaoRenderer::Vertex& TaoRenderer::GetIntersectVertex(ClipPlane clip_plane, Vertex& v1, Vertex& v2) {
 	float ratio = 1.0f;
-	Vec4f c = v1.position, p = v2.position;
+	Vec4f p = v1.cs_position, c = v2.cs_position;
 	// 根据平面来获取交点位于线段的ratio
 	switch (clip_plane) {
 		case TaoRenderer::X_RIGHT:
@@ -161,7 +163,7 @@ TaoRenderer::Vertex& TaoRenderer::GetIntersectVertex(ClipPlane clip_plane, Verte
 	}
 	// vertex
 	Vertex* new_vertex = new Vertex();
-	new_vertex->position = vector_lerp(v1.position, v2.position, ratio); // 根据比率获取位置
+	new_vertex->cs_position = vector_lerp(v1.cs_position, v2.cs_position, ratio); // 根据比率获取位置
 	
 	Varyings& context = new_vertex->context;
 	Varyings& context_v1 = v1.context;
@@ -199,8 +201,8 @@ int TaoRenderer::ClipWithPlane(ClipPlane clip_plane, Vertex vertex[3]) {
 		const int cur_index = i; // 当前顶点的序号
 		const int pre_index = (i - 1 + vertex_count) % vertex_count; // 逆时针方向前一个顶点的序号
 		
-		Vec4f cur_vertex = vertex[cur_index].position; // 当前顶点位置
-		Vec4f pre_vertex = vertex[pre_index].position; // 按照顺序前一个顶点的位置
+		Vec4f cur_vertex = vertex[cur_index].cs_position; // 当前顶点位置
+		Vec4f pre_vertex = vertex[pre_index].cs_position; // 按照顺序前一个顶点的位置
 
 		const bool is_cur_inside = IsInsidePlane(clip_plane, cur_vertex);
 		const bool is_pre_inside = IsInsidePlane(clip_plane, pre_vertex);
@@ -217,12 +219,110 @@ int TaoRenderer::ClipWithPlane(ClipPlane clip_plane, Vertex vertex[3]) {
 	}
 	return in_vertex_count;
 }
+
 #pragma region
 
 #pragma region 绘制函数
+
+// 绘制阴影贴图
+void TaoRenderer::DrawShadowMap() 
+{
+	if (!render_shadow_) return;
+	Attributes* attributes = data_buffer_->attributes_;
+	Model* model = data_buffer_->GetModel();
+	// 按照每三个顶点的方式，循环该模型所有顶点
+	for (size_t i = 0; i < model->attributes_.size(); i += 3)
+	{
+		// 把对应model的三点的attributes设置给对应shader的attributes
+		for (int j = 0; j < 3; j++) {
+			attributes[j].position_os = model->attributes_[i + j].position_os;
+			attributes[j].texcoord = model->attributes_[i + j].texcoord;
+			attributes[j].normal_os = model->attributes_[i + j].normal_os;
+			attributes[j].tangent_os = model->attributes_[i + j].tangent_os;
+		}
+		// 顶点变换
+		for (int k = 0; k < 3; k++) {
+			vertex_[k].context.varying_float.clear();
+			vertex_[k].context.varying_vec2f.clear();
+			vertex_[k].context.varying_vec3f.clear();
+			vertex_[k].context.varying_vec4f.clear();
+
+			// 执行顶点着色程序，返回裁剪空间中的顶点坐标，此时没有进行透视除法
+			vertex_[k].cs_position = shadow_vertex_shader_(k, vertex_[k].context);
+			vertex_[k].has_transformed = false;
+		}
+
+		/*
+		* 裁剪空间中的背面剔除：
+		*
+		* 在观察空间中进行判断，观察空间使用右手坐标系，即相机看向z轴负方向
+		* 判断三角形朝向，剔除背对相机的三角形
+		* 由于相机看向z轴负方向，因此三角形法线的z分量为负，说明背对相机
+		*
+		* 顶点顺序：
+		* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
+		*/
+		const Vec4f vector_01 = vertex_[1].cs_position - vertex_[0].cs_position;
+		const Vec4f vector_02 = vertex_[2].cs_position - vertex_[0].cs_position;
+		const Vec4f normal = vector_cross(vector_01, vector_02);
+		if (normal.z < 0) continue;
+
+		/*
+		* 裁剪空间中的近平面裁剪：
+		*
+		* 根据三角面的三个顶点与平面形成的四种情况，对三角面进行裁剪
+		*
+		* 顶点顺序：
+		* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
+		*/
+
+		int in_vertex_count = 0; // 在近平面内的顶点个数
+		if (IsInsidePlane(Z_NEAR, vertex_[0].cs_position) &&
+			IsInsidePlane(Z_NEAR, vertex_[1].cs_position) &&
+			IsInsidePlane(Z_NEAR, vertex_[2].cs_position))
+		{
+			in_vertex_count = 3;
+			clip_vertex_[0] = &vertex_[0];
+			clip_vertex_[1] = &vertex_[1];
+			clip_vertex_[2] = &vertex_[2];
+		}
+		else
+		{
+			// 在裁剪空间中，针对近裁剪平面进行裁剪
+			in_vertex_count = ClipWithPlane(Z_NEAR, vertex_);
+		}
+
+		// 接下来就对裁剪后得到的3个或4个顶点所形成的1个或2个三角面进行光栅化
+		for (int i = 0; i < in_vertex_count - 2; i++) {
+			Vertex* raster_vertex[3] = { clip_vertex_[0], clip_vertex_[i + 1], clip_vertex_[i + 2] };
+
+			for (int k = 0; k < 3; k++) {
+				Vertex* cur_vertex = raster_vertex[k];
+				// 透视除法
+				cur_vertex->w_reciprocal = 1.0f / cur_vertex->cs_position.w;
+				cur_vertex->cs_position *= cur_vertex->w_reciprocal;
+
+				// 屏幕映射
+				cur_vertex->screen_position_f.x = (cur_vertex->cs_position.x + 1.0f) * static_cast<float>(frame_buffer_width_ - 1) * 0.5f;
+				cur_vertex->screen_position_f.y = (cur_vertex->cs_position.y + 1.0f) * static_cast<float>(frame_buffer_height_ - 1) * 0.5f;
+
+				// 计算整数屏幕坐标
+				cur_vertex->screen_position_i.x = static_cast<int>(floor(cur_vertex->screen_position_f.x));
+				cur_vertex->screen_position_i.y = static_cast<int>(floor(cur_vertex->screen_position_f.y));
+				cur_vertex->screen_position_f.x = cur_vertex->screen_position_i.x + 0.5f;
+				cur_vertex->screen_position_f.y = cur_vertex->screen_position_i.y + 0.5f;
+			}
+			RasterizeTriangle(raster_vertex, true);
+		}
+	}
+	// 此时的DepthBuffer，正是shadowBuffer
+	data_buffer_->CopyShadowBuffer();
+}
+
 // 绘制网格体
 void TaoRenderer::DrawMesh() 
 {	
+	UniformBuffer* uniform_buffer_ = data_buffer_->GetUniformBuffer();
 	Attributes* attributes = data_buffer_->attributes_;
 	Model* model = data_buffer_->GetModel();
 	int counter = 0; // 判断多少个三角面被绘制
@@ -242,9 +342,10 @@ void TaoRenderer::DrawMesh()
 			vertex_[k].context.varying_vec2f.clear();
 			vertex_[k].context.varying_vec3f.clear();
 			vertex_[k].context.varying_vec4f.clear();
-
+			
 			// 执行顶点着色程序，返回裁剪空间中的顶点坐标，此时没有进行透视除法
-			vertex_[k].position = vertex_shader_(k, vertex_[k].context);
+			vertex_[k].ws_position = uniform_buffer_->model_matrix * attributes[k].position_os.xyz1();
+			vertex_[k].cs_position = vertex_shader_(k, vertex_[k].context);
 			vertex_[k].has_transformed = false;
 		}
 
@@ -258,8 +359,8 @@ void TaoRenderer::DrawMesh()
 		* 顶点顺序：
 		* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
 		*/
-		const Vec4f vector_01 = vertex_[1].position - vertex_[0].position;
-		const Vec4f vector_02 = vertex_[2].position - vertex_[0].position;
+		const Vec4f vector_01 = vertex_[1].cs_position - vertex_[0].cs_position;
+		const Vec4f vector_02 = vertex_[2].cs_position - vertex_[0].cs_position;
 		const Vec4f normal = vector_cross(vector_01, vector_02);
 		if (normal.z < 0) continue;
 
@@ -273,9 +374,9 @@ void TaoRenderer::DrawMesh()
 		*/
 		
 		int in_vertex_count = 0; // 在近平面内的顶点个数
-		if (IsInsidePlane(Z_NEAR, vertex_[0].position) &&
-			IsInsidePlane(Z_NEAR, vertex_[1].position) &&
-			IsInsidePlane(Z_NEAR, vertex_[2].position))
+		if (IsInsidePlane(Z_NEAR, vertex_[0].cs_position) &&
+			IsInsidePlane(Z_NEAR, vertex_[1].cs_position) &&
+			IsInsidePlane(Z_NEAR, vertex_[2].cs_position))
 		{
 			in_vertex_count = 3;
 			clip_vertex_[0] = &vertex_[0];
@@ -294,13 +395,14 @@ void TaoRenderer::DrawMesh()
 			
 			for (int k = 0; k < 3; k++) {
 				Vertex* cur_vertex = raster_vertex[k];
+
 				// 透视除法
-				cur_vertex->w_reciprocal = 1.0f / cur_vertex->position.w;
-				cur_vertex->position *= cur_vertex->w_reciprocal;
+				cur_vertex->w_reciprocal = 1.0f / cur_vertex->cs_position.w;
+				cur_vertex->cs_position *= cur_vertex->w_reciprocal;
 
 				// 屏幕映射
-				cur_vertex->screen_position_f.x = (cur_vertex->position.x + 1.0f) * static_cast<float>(frame_buffer_width_ - 1) * 0.5f;
-				cur_vertex->screen_position_f.y = (cur_vertex->position.y + 1.0f) * static_cast<float>(frame_buffer_height_ - 1) * 0.5f;
+				cur_vertex->screen_position_f.x = (cur_vertex->cs_position.x + 1.0f) * static_cast<float>(frame_buffer_width_ - 1) * 0.5f;
+				cur_vertex->screen_position_f.y = (cur_vertex->cs_position.y + 1.0f) * static_cast<float>(frame_buffer_height_ - 1) * 0.5f;
 
 				// 计算整数屏幕坐标
 				cur_vertex->screen_position_i.x = static_cast<int>(floor(cur_vertex->screen_position_f.x));
@@ -308,21 +410,21 @@ void TaoRenderer::DrawMesh()
 				cur_vertex->screen_position_f.x = cur_vertex->screen_position_i.x + 0.5f;
 				cur_vertex->screen_position_f.y = cur_vertex->screen_position_i.y + 0.5f;
 			}
-			RasterizeTriangle(raster_vertex);
+			RasterizeTriangle(raster_vertex, false);
 			counter++;
 		}
 	}
 	window_->SetLogMessage("SurfaceBeenDrawn", "SurfaceBeenDrawn: "+std::to_string(counter));
 }
 
-void TaoRenderer::RasterizeTriangle(Vertex* vertex[3]) {
+void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowMap) {
 	// 只绘制线框，不绘制像素，直接退出
 	if (render_frame_ && !render_pixel_) {
 		DrawWireFrame(vertex);
 		return;
 	}
 	// 初始化矩形右上角顶点和左下角顶点
-	Vec2i bounding_min(10000, 10000), bounding_max(-10000, -10000);
+	Vec2i bounding_min(100000, 100000), bounding_max(-100000, -100000);
 	// 遍历三个顶点寻找包围三角面的矩形范围
 	for (int i = 0; i < 3; i++) {
 		Vec2i screen_position_i = vertex[i]->screen_position_i;
@@ -342,8 +444,134 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3]) {
 	Vec2i p1 = vertex[1]->screen_position_i;
 	Vec2i p2 = vertex[2]->screen_position_i;
 	// 构建边缘方程，用来判断平面上一点是否在三角形内部
-	
+	Vec2i bottom_left_point = bounding_min;
+	edge_equation_[0].Initialize(p1, p2, bottom_left_point, vertex[0]->w_reciprocal);
+	edge_equation_[1].Initialize(p2, p0, bottom_left_point, vertex[1]->w_reciprocal);
+	edge_equation_[2].Initialize(p0, p1, bottom_left_point, vertex[2]->w_reciprocal);
 	// 接下来需要遍历BB内的所有像素点
+	for (int x = bounding_min.x; x <= bounding_max.x; x++) {
+		for (int y = bounding_min.y; y <= bounding_max.y; y++) {
+			Vec2i offset = { x - bounding_min.x, y - bounding_min.y };
+			
+			// 判断点属于(x,y)是否位于三角形内部或者三角形边缘
+			// 当属于上边缘或者左边缘的时候，将e与1进行比较，从而跳过e=0的情况
+			float e0 = edge_equation_[0].Evaluate(offset.x, offset.y);
+			if (e0 < (edge_equation_[0].is_top_left ? 0 : 1)) continue;
+
+			float e1 = edge_equation_[1].Evaluate(offset.x, offset.y);
+			if (e1 < (edge_equation_[1].is_top_left ? 0 : 1)) continue;
+
+			float e2 = edge_equation_[2].Evaluate(offset.x, offset.y);
+			if (e2 < (edge_equation_[2].is_top_left ? 0 : 1)) continue;
+
+			// 计算重心坐标
+			float bc_denominator = e0 + e1 + e2;
+			bc_denominator = 1.0f / bc_denominator;
+
+			float bc_p0 = e0 * bc_denominator;
+			float bc_p1 = e1 * bc_denominator;
+			float bc_p2 = e2 * bc_denominator;
+
+			// 接下来就是插值环节，该像素位于三角形内部，根据其重心坐标，插值每一个顶点属性
+			// 首先插值深度
+			float depth =
+				vertex[0]->cs_position.z * bc_p0 +
+				vertex[1]->cs_position.z * bc_p1 +
+				vertex[2]->cs_position.z * bc_p2;
+
+			// 保证深度缓存的深度为该像素位置离摄像机最近的片元
+			if (1.0f - depth <= data_buffer_->depth_buffer_[y][x]) continue;
+			data_buffer_->depth_buffer_[y][x] = 1.0f - depth;
+			// std::cout << "depth: " << depth << " " << "depth_buffer" << data_buffer_->depth_buffer_[y][x] << std::endl;
+
+
+			// 准备为当前各像素的varying进行插值
+			// 准备为当前像素的各项 varying 进行插值
+
+			if (is_Rendering_ShadowMap) {
+				// SetPixel(x, y, Vec4f(1.0f - depth));
+				// std::cout << 1.0f-depth << std::endl;
+				continue; // 如果正在渲染阴影贴图，那么就不需要插值各项属性了，因为用不上pixelshader
+			}
+
+			Varyings& context_p0 = vertex[0]->context;
+			Varyings& context_p1 = vertex[1]->context;
+			Varyings& context_p2 = vertex[2]->context;
+
+			// 插值各项 varying
+			if (!context_p0.varying_float.empty()) {
+				for (const auto& key : context_p0.varying_float | std::views::keys) {
+					float f0 = context_p0.varying_float[key];
+					float f1 = context_p1.varying_float[key];
+					float f2 = context_p2.varying_float[key];
+					current_varyings_.varying_float[key] = bc_p0 * f0 + bc_p1 * f1 + bc_p2 * f2;
+				}
+			}
+			if (!context_p0.varying_vec2f.empty()) {
+				for (const auto& key : context_p0.varying_vec2f | std::views::keys) {
+					const Vec2f& f0 = context_p0.varying_vec2f[key];
+					const Vec2f& f1 = context_p1.varying_vec2f[key];
+					const Vec2f& f2 = context_p2.varying_vec2f[key];
+					current_varyings_.varying_vec2f[key] = bc_p0 * f0 + bc_p1 * f1 + bc_p2 * f2;
+				}
+			}
+			if (!context_p0.varying_vec3f.empty()) {
+				for (const auto& key : context_p0.varying_vec3f | std::views::keys) {
+					const Vec3f& f0 = context_p0.varying_vec3f[key];
+					const Vec3f& f1 = context_p1.varying_vec3f[key];
+					const Vec3f& f2 = context_p2.varying_vec3f[key];
+					current_varyings_.varying_vec3f[key] = bc_p0 * f0 + bc_p1 * f1 + bc_p2 * f2;
+				}
+			}
+			if (!context_p0.varying_vec4f.empty()) {
+				for (const auto& key : context_p0.varying_vec4f | std::views::keys) {
+					const Vec4f& f0 = context_p0.varying_vec4f[key];
+					const Vec4f& f1 = context_p1.varying_vec4f[key];
+					const Vec4f& f2 = context_p2.varying_vec4f[key];
+					current_varyings_.varying_vec4f[key] = bc_p0 * f0 + bc_p1 * f1 + bc_p2 * f2;
+				}
+			}
+
+			// 执行像素着色器
+			Vec4f color = { 1.0f };
+			if (pixel_shader_ != nullptr) {
+				color = pixel_shader_(current_varyings_);
+			}
+			// 如果渲染阴影，判断该pixel的深度与深度缓冲中的值大小
+			if (render_shadow_) {
+				Mat4x4f V = data_buffer_->GetUniformBuffer()->view_matrix;
+				Mat4x4f P = data_buffer_->GetUniformBuffer()->project_matrix;
+				// 计算该fragment的world pos
+				Vec4f worldPos0 = vertex[0]->context.varying_vec3f[1].xyz1();
+				Vec4f worldPos1 = vertex[1]->context.varying_vec3f[1].xyz1();
+				Vec4f worldPos2 = vertex[2]->context.varying_vec3f[1].xyz1();
+				Vec4f worldPos = worldPos0 * bc_p0 + worldPos1 * bc_p1 + worldPos2 * bc_p2;
+				Vec4f csPos = data_buffer_->GetUniformBuffer()->shadow_VP_matrix * worldPos;
+
+				// 透视除法
+				float w_reciprocal = 1.0f / csPos.w;
+				csPos *= w_reciprocal;
+
+				// 该片元在光源视角下的深度
+				float depthFromLight = csPos.z;
+				// 该片元位于ShadowBuffer的坐标
+				Vec2i shadowScreenPos(0.f);
+				// 屏幕映射
+
+				shadowScreenPos.x = static_cast<int>((csPos.x + 1.0f) * static_cast<float>(shadow_buffer_width_ - 1) * 0.5f);
+				shadowScreenPos.y = static_cast<int>((csPos.y + 1.0f) * static_cast<float>(shadow_buffer_height_ - 1) * 0.5f);
+				// 阴影bias
+				float shadow_bias = .008f;
+				if (1 - depthFromLight + shadow_bias <= data_buffer_->shadow_buffer_[shadowScreenPos.y][shadowScreenPos.x]) {
+					color *= 0.3f;
+				}
+				if (x == 275 && y == 250) {
+					std::cout << 1 - depthFromLight << " " << data_buffer_->shadow_buffer_[shadowScreenPos.y][shadowScreenPos.x] << std::endl;
+				}
+			}
+			SetPixel(x, y, color);
+		}
+	}
 }
 
 
@@ -356,7 +584,7 @@ void TaoRenderer::DrawWireFrame(Vertex* vertex[3]) const
 }
 
 void TaoRenderer::DrawLine(int x1, int y1, int x2, int y2, const Vec4f& color) const
-{
+{	
 	int x, y;
 	if (x1 == x2 && y1 == y2) {	// 两点重合
 		SetPixel(x1, y1, color);
@@ -410,7 +638,21 @@ void TaoRenderer::DrawLine(int x1, int y1, int x2, int y2, const Vec4f& color) c
 			SetPixel(x2, y2, color);
 		}
 	}
+}
 
+// 在颜色缓冲中绘制点
+void TaoRenderer::SetPixel(const int x, const int y, const Vec4f& cc) const {
+	uint8_t* color_buffer_ = data_buffer_->color_buffer_;
+	SetBuffer(color_buffer_, x, y, cc); 
+}
+void TaoRenderer::SetPixel(const int x, const int y, const Vec3f& cc) const {
+	uint8_t* color_buffer_ = data_buffer_->color_buffer_;
+	SetBuffer(color_buffer_, x, y, cc.xyz1()); 
+}
+// 在颜色缓冲中绘制线段
+void TaoRenderer::DrawLine(const int x1, const int y1, const int x2, const int y2) const {
+	uint8_t* color_buffer_ = data_buffer_->color_buffer_;
+	if (color_buffer_) DrawLine(x1, y1, x2, y2, color_foreground_);
 }
 
 #pragma endregion

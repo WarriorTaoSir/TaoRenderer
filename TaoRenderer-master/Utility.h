@@ -7,7 +7,6 @@
 using std::string;
 using std::ifstream;
 
-#pragma region 文件操作
 /*
 	文件内容：
 	-文件的读取操作

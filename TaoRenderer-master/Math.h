@@ -164,22 +164,22 @@ inline static Mat4x4f matrix_look_at(const Vec3f& camera_position, const Vec3f& 
 	则正交投影矩阵为：
 	2/(r-l)	0		0			-(r+l)/(r-l)
 	0		2/(t-b)	0			-(t+b)/(t-b)
-	0		0		2/(n-f)		-(n+f)/(n-f)
+	0		0		1/(f-n)		-n/(f-n)
 	0		0		0			1
 */
-//inline static Mat4x4f matrix_set_orthograhpic(float right, float left, float top, float bottom, float near, float far) {
-//	Mat4x4f m = matrix_set_zero();
-//
-//	m.m[0][0] = 2 / (right - left);
-//	m.m[1][1] = 2 / (top - bottom);
-//	m.m[2][2] = 2 / (near - far);
-//	m.m[3][3] = 1;
-//	m.m[0][3] = - (right + left) / (right - left);
-//	m.m[1][3] = - (top + bottom) / (top - bottom);
-//	m.m[2][3] = - (near + far) / (near - far);
-//
-//	return m;
-//}
+inline static Mat4x4f matrix_set_orthograhpic(float right, float left, float top, float bottom, float n, float far) {
+	Mat4x4f m = matrix_set_zero();
+
+	m.m[0][0] = 2 / (right - left);
+	m.m[1][1] = 2 / (top - bottom);
+	m.m[2][2] = 1.0f / (far - n);
+	m.m[3][3] = 1;
+	m.m[0][3] = - (right + left) / (right - left);
+	m.m[1][3] = -(top + bottom) / (top - bottom);
+	m.m[2][3] = - n / (far - n);
+
+	return m;
+}
 
 /*
 	计算透视投影矩阵 (相机看向-z方向，右手坐标系)

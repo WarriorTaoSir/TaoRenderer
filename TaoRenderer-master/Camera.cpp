@@ -120,26 +120,26 @@ void Camera::HandleKeyEvents()
 	{
 		position_ += 0.05f * axis_v_;
 	}
-	if (window_->keys_['W'])
-	{
-		position_ += 0.05f * axis_u_;
-		target_ += 0.05f * axis_u_;
-	}
-	if (window_->keys_['S'])
-	{
-		position_ += -0.05f * axis_u_;
-		target_ += -0.05f * axis_u_;
-	}
-	if (window_->keys_['A'])
-	{
-		position_ += -0.05f * axis_r_;
-		target_ += -0.05f * axis_r_;
-	}
-	if (window_->keys_['D'])
-	{
-		position_ += 0.05f * axis_r_;
-		target_ += 0.05f * axis_r_;
-	}
+	//if (window_->keys_['W'])
+	//{
+	//	position_ += 0.05f * axis_u_;
+	//	target_ += 0.05f * axis_u_;
+	//}
+	//if (window_->keys_['S'])
+	//{
+	//	position_ += -0.05f * axis_u_;
+	//	target_ += -0.05f * axis_u_;
+	//}
+	//if (window_->keys_['A'])
+	//{
+	//	position_ += -0.05f * axis_r_;
+	//	target_ += -0.05f * axis_r_;
+	//}
+	//if (window_->keys_['D'])
+	//{
+	//	position_ += 0.05f * axis_r_;
+	//	target_ += 0.05f * axis_r_;
+	//}
 	if (window_->keys_[VK_SPACE])
 	{
 		position_ = origin_position_;

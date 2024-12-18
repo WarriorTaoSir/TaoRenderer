@@ -10,7 +10,7 @@
 /*
 	文件内容：
 	-Shader类的声明
-	-最近一次修改日期：2024.11.21
+	-最近一次修改日期：2024.12.16
 */
 
 #pragma region 相关结构体/定义
@@ -66,6 +66,23 @@ public:
 	virtual Vec4f PixelShaderFunction(Varyings& input) const = 0;
 	//virtual  void HandleKeyEvents() = 0;
 	
+};
+
+// 用于渲染阴影贴图的shader
+class ShadowShader final : public IShader
+{
+public:
+	enum VaryingAttributes
+	{
+		VARYING_TEXCOORD = 0,			// 纹理坐标
+		VARYING_POSITION_WS = 1,		// 世界空间坐标
+		VARYING_NORMAL_WS = 2,			// 世界空间法线
+		VARYING_TANGENT_WS = 3,			// 世界空间切线
+	};
+public:
+	ShadowShader(UniformBuffer* uniform_buffer) : IShader(uniform_buffer) {}
+	Vec4f VertexShaderFunction(int index, Varyings& output) const override;
+	Vec4f PixelShaderFunction(Varyings& input) const override;
 };
 
 // 一个临时使用的默认shader
