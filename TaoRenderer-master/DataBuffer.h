@@ -51,21 +51,20 @@ public:
 	float** shadow_buffer_;		// 渲染器阴影缓冲
 	float** depth_buffer_;		// 渲染器深度缓存
 	float height_, width_;		// 渲染帧宽高
+	std::vector<Model*> model_list_;	// 要渲染的模型列表
 private:
 	UniformBuffer* uniform_buffer_;
-	Model* model_;
-
 private:
 	static DataBuffer* instance_;
+	int current_model_index_;
 public:
 	DataBuffer();
 	~DataBuffer();
 	static DataBuffer* GetInstance();
 	UniformBuffer* GetUniformBuffer() const;
 	void SetUniformBuffer(UniformBuffer* uniform_buffer);
-	Model* GetModel() const;
-	void SetModel(Model* uniform_buffer) ;
 	void Init(int height, int width);
 	void CopyShadowBuffer();
-
+	void MoveToNextModel();
+	Model* GetModelBeingRendered();
 };

@@ -229,92 +229,97 @@ void TaoRenderer::DrawShadowMap()
 {
 	if (!render_shadow_) return;
 	Attributes* attributes = data_buffer_->attributes_;
-	Model* model = data_buffer_->GetModel();
-	// 按照每三个顶点的方式，循环该模型所有顶点
-	for (size_t i = 0; i < model->attributes_.size(); i += 3)
-	{
-		// 把对应model的三点的attributes设置给对应shader的attributes
-		for (int j = 0; j < 3; j++) {
-			attributes[j].position_os = model->attributes_[i + j].position_os;
-			attributes[j].texcoord = model->attributes_[i + j].texcoord;
-			attributes[j].normal_os = model->attributes_[i + j].normal_os;
-			attributes[j].tangent_os = model->attributes_[i + j].tangent_os;
-		}
-		// 顶点变换
-		for (int k = 0; k < 3; k++) {
-			vertex_[k].context.varying_float.clear();
-			vertex_[k].context.varying_vec2f.clear();
-			vertex_[k].context.varying_vec3f.clear();
-			vertex_[k].context.varying_vec4f.clear();
-
-			// 执行顶点着色程序，返回裁剪空间中的顶点坐标，此时没有进行透视除法
-			vertex_[k].cs_position = shadow_vertex_shader_(k, vertex_[k].context);
-			vertex_[k].has_transformed = false;
-		}
-
-		/*
-		* 裁剪空间中的背面剔除：
-		*
-		* 在观察空间中进行判断，观察空间使用右手坐标系，即相机看向z轴负方向
-		* 判断三角形朝向，剔除背对相机的三角形
-		* 由于相机看向z轴负方向，因此三角形法线的z分量为负，说明背对相机
-		*
-		* 顶点顺序：
-		* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
-		*/
-		const Vec4f vector_01 = vertex_[1].cs_position - vertex_[0].cs_position;
-		const Vec4f vector_02 = vertex_[2].cs_position - vertex_[0].cs_position;
-		const Vec4f normal = vector_cross(vector_01, vector_02);
-		if (normal.z < 0) continue;
-
-		/*
-		* 裁剪空间中的近平面裁剪：
-		*
-		* 根据三角面的三个顶点与平面形成的四种情况，对三角面进行裁剪
-		*
-		* 顶点顺序：
-		* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
-		*/
-
-		int in_vertex_count = 0; // 在近平面内的顶点个数
-		if (IsInsidePlane(Z_NEAR, vertex_[0].cs_position) &&
-			IsInsidePlane(Z_NEAR, vertex_[1].cs_position) &&
-			IsInsidePlane(Z_NEAR, vertex_[2].cs_position))
+	for (auto model : data_buffer_->model_list_) {
+		// 更新模型矩阵和uniform buffer
+		
+		// 按照每三个顶点的方式，循环该模型所有顶点
+		for (size_t i = 0; i < model->attributes_.size(); i += 3)
 		{
-			in_vertex_count = 3;
-			clip_vertex_[0] = &vertex_[0];
-			clip_vertex_[1] = &vertex_[1];
-			clip_vertex_[2] = &vertex_[2];
-		}
-		else
-		{
-			// 在裁剪空间中，针对近裁剪平面进行裁剪
-			in_vertex_count = ClipWithPlane(Z_NEAR, vertex_);
-		}
-
-		// 接下来就对裁剪后得到的3个或4个顶点所形成的1个或2个三角面进行光栅化
-		for (int i = 0; i < in_vertex_count - 2; i++) {
-			Vertex* raster_vertex[3] = { clip_vertex_[0], clip_vertex_[i + 1], clip_vertex_[i + 2] };
-
-			for (int k = 0; k < 3; k++) {
-				Vertex* cur_vertex = raster_vertex[k];
-				// 透视除法
-				cur_vertex->w_reciprocal = 1.0f / cur_vertex->cs_position.w;
-				cur_vertex->cs_position *= cur_vertex->w_reciprocal;
-
-				// 屏幕映射
-				cur_vertex->screen_position_f.x = (cur_vertex->cs_position.x + 1.0f) * static_cast<float>(frame_buffer_width_ - 1) * 0.5f;
-				cur_vertex->screen_position_f.y = (cur_vertex->cs_position.y + 1.0f) * static_cast<float>(frame_buffer_height_ - 1) * 0.5f;
-
-				// 计算整数屏幕坐标
-				cur_vertex->screen_position_i.x = static_cast<int>(floor(cur_vertex->screen_position_f.x));
-				cur_vertex->screen_position_i.y = static_cast<int>(floor(cur_vertex->screen_position_f.y));
-				cur_vertex->screen_position_f.x = cur_vertex->screen_position_i.x + 0.5f;
-				cur_vertex->screen_position_f.y = cur_vertex->screen_position_i.y + 0.5f;
+			// 把对应model的三点的attributes设置给对应shader的attributes
+			for (int j = 0; j < 3; j++) {
+				attributes[j].position_os = model->attributes_[i + j].position_os;
+				attributes[j].texcoord = model->attributes_[i + j].texcoord;
+				attributes[j].normal_os = model->attributes_[i + j].normal_os;
+				attributes[j].tangent_os = model->attributes_[i + j].tangent_os;
 			}
-			RasterizeTriangle(raster_vertex, true);
+			// 顶点变换
+			for (int k = 0; k < 3; k++) {
+				vertex_[k].context.varying_float.clear();
+				vertex_[k].context.varying_vec2f.clear();
+				vertex_[k].context.varying_vec3f.clear();
+				vertex_[k].context.varying_vec4f.clear();
+
+				// 执行顶点着色程序，返回裁剪空间中的顶点坐标，此时没有进行透视除法
+				vertex_[k].cs_position = shadow_vertex_shader_(k, vertex_[k].context);
+				vertex_[k].has_transformed = false;
+			}
+
+			/*
+			* 裁剪空间中的背面剔除：
+			*
+			* 在观察空间中进行判断，观察空间使用右手坐标系，即相机看向z轴负方向
+			* 判断三角形朝向，剔除背对相机的三角形
+			* 由于相机看向z轴负方向，因此三角形法线的z分量为负，说明背对相机
+			*
+			* 顶点顺序：
+			* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
+			*/
+			const Vec4f vector_01 = vertex_[1].cs_position - vertex_[0].cs_position;
+			const Vec4f vector_02 = vertex_[2].cs_position - vertex_[0].cs_position;
+			const Vec4f normal = vector_cross(vector_01, vector_02);
+			if (normal.z < 0) continue;
+
+			/*
+			* 裁剪空间中的近平面裁剪：
+			*
+			* 根据三角面的三个顶点与平面形成的四种情况，对三角面进行裁剪
+			*
+			* 顶点顺序：
+			* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
+			*/
+
+			int in_vertex_count = 0; // 在近平面内的顶点个数
+			if (IsInsidePlane(Z_NEAR, vertex_[0].cs_position) &&
+				IsInsidePlane(Z_NEAR, vertex_[1].cs_position) &&
+				IsInsidePlane(Z_NEAR, vertex_[2].cs_position))
+			{
+				in_vertex_count = 3;
+				clip_vertex_[0] = &vertex_[0];
+				clip_vertex_[1] = &vertex_[1];
+				clip_vertex_[2] = &vertex_[2];
+			}
+			else
+			{
+				// 在裁剪空间中，针对近裁剪平面进行裁剪
+				in_vertex_count = ClipWithPlane(Z_NEAR, vertex_);
+			}
+
+			// 接下来就对裁剪后得到的3个或4个顶点所形成的1个或2个三角面进行光栅化
+			for (int i = 0; i < in_vertex_count - 2; i++) {
+				Vertex* raster_vertex[3] = { clip_vertex_[0], clip_vertex_[i + 1], clip_vertex_[i + 2] };
+
+				for (int k = 0; k < 3; k++) {
+					Vertex* cur_vertex = raster_vertex[k];
+					// 透视除法
+					cur_vertex->w_reciprocal = 1.0f / cur_vertex->cs_position.w;
+					cur_vertex->cs_position *= cur_vertex->w_reciprocal;
+
+					// 屏幕映射
+					cur_vertex->screen_position_f.x = (cur_vertex->cs_position.x + 1.0f) * static_cast<float>(frame_buffer_width_ - 1) * 0.5f;
+					cur_vertex->screen_position_f.y = (cur_vertex->cs_position.y + 1.0f) * static_cast<float>(frame_buffer_height_ - 1) * 0.5f;
+
+					// 计算整数屏幕坐标
+					cur_vertex->screen_position_i.x = static_cast<int>(floor(cur_vertex->screen_position_f.x));
+					cur_vertex->screen_position_i.y = static_cast<int>(floor(cur_vertex->screen_position_f.y));
+					cur_vertex->screen_position_f.x = cur_vertex->screen_position_i.x + 0.5f;
+					cur_vertex->screen_position_f.y = cur_vertex->screen_position_i.y + 0.5f;
+				}
+				RasterizeTriangle(raster_vertex, true);
+			}
 		}
+		data_buffer_->MoveToNextModel();
 	}
+	
 	// 此时的DepthBuffer，正是shadowBuffer
 	data_buffer_->CopyShadowBuffer();
 }
@@ -324,95 +329,97 @@ void TaoRenderer::DrawMesh()
 {	
 	UniformBuffer* uniform_buffer_ = data_buffer_->GetUniformBuffer();
 	Attributes* attributes = data_buffer_->attributes_;
-	Model* model = data_buffer_->GetModel();
 	int counter = 0; // 判断多少个三角面被绘制
-	// 按照每三个顶点的方式，循环该模型所有顶点
-	for (size_t i = 0; i < model->attributes_.size(); i += 3)
-	{
-		// 把对应model的三点的attributes设置给对应shader的attributes
-		for (int j = 0; j < 3; j++) {
-			attributes[j].position_os = model->attributes_[i + j].position_os;
-			attributes[j].texcoord = model->attributes_[i + j].texcoord;
-			attributes[j].normal_os = model->attributes_[i + j].normal_os;
-			attributes[j].tangent_os = model->attributes_[i + j].tangent_os;
-		}
-		// 顶点变换
-		for (int k = 0; k < 3; k++) {
-			vertex_[k].context.varying_float.clear();
-			vertex_[k].context.varying_vec2f.clear();
-			vertex_[k].context.varying_vec3f.clear();
-			vertex_[k].context.varying_vec4f.clear();
-			
-			// 执行顶点着色程序，返回裁剪空间中的顶点坐标，此时没有进行透视除法
-			vertex_[k].ws_position = uniform_buffer_->model_matrix * attributes[k].position_os.xyz1();
-			vertex_[k].cs_position = vertex_shader_(k, vertex_[k].context);
-			vertex_[k].has_transformed = false;
-		}
-
-		/*
-		* 裁剪空间中的背面剔除：
-		*
-		* 在观察空间中进行判断，观察空间使用右手坐标系，即相机看向z轴负方向
-		* 判断三角形朝向，剔除背对相机的三角形
-		* 由于相机看向z轴负方向，因此三角形法线的z分量为负，说明背对相机
-		*
-		* 顶点顺序：
-		* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
-		*/
-		const Vec4f vector_01 = vertex_[1].cs_position - vertex_[0].cs_position;
-		const Vec4f vector_02 = vertex_[2].cs_position - vertex_[0].cs_position;
-		const Vec4f normal = vector_cross(vector_01, vector_02);
-		if (normal.z < 0) continue;
-
-		/*
-		* 裁剪空间中的近平面裁剪：
-		*
-		* 根据三角面的三个顶点与平面形成的四种情况，对三角面进行裁剪
-		*
-		* 顶点顺序：
-		* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
-		*/
-		
-		int in_vertex_count = 0; // 在近平面内的顶点个数
-		if (IsInsidePlane(Z_NEAR, vertex_[0].cs_position) &&
-			IsInsidePlane(Z_NEAR, vertex_[1].cs_position) &&
-			IsInsidePlane(Z_NEAR, vertex_[2].cs_position))
+	for (auto model : data_buffer_->model_list_) {
+		// 按照每三个顶点的方式，循环该模型所有顶点
+		for (size_t i = 0; i < model->attributes_.size(); i += 3)
 		{
-			in_vertex_count = 3;
-			clip_vertex_[0] = &vertex_[0];
-			clip_vertex_[1] = &vertex_[1];
-			clip_vertex_[2] = &vertex_[2];
-		}
-		else 
-		{
-			// 在裁剪空间中，针对近裁剪平面进行裁剪
-			in_vertex_count = ClipWithPlane(Z_NEAR, vertex_);
-		}
-
-		// 接下来就对裁剪后得到的3个或4个顶点所形成的1个或2个三角面进行光栅化
-		for (int i = 0; i < in_vertex_count - 2; i++) {
-			Vertex* raster_vertex[3] = { clip_vertex_[0], clip_vertex_[i + 1], clip_vertex_[i + 2] };
-			
-			for (int k = 0; k < 3; k++) {
-				Vertex* cur_vertex = raster_vertex[k];
-
-				// 透视除法
-				cur_vertex->w_reciprocal = 1.0f / cur_vertex->cs_position.w;
-				cur_vertex->cs_position *= cur_vertex->w_reciprocal;
-
-				// 屏幕映射
-				cur_vertex->screen_position_f.x = (cur_vertex->cs_position.x + 1.0f) * static_cast<float>(frame_buffer_width_ - 1) * 0.5f;
-				cur_vertex->screen_position_f.y = (cur_vertex->cs_position.y + 1.0f) * static_cast<float>(frame_buffer_height_ - 1) * 0.5f;
-
-				// 计算整数屏幕坐标
-				cur_vertex->screen_position_i.x = static_cast<int>(floor(cur_vertex->screen_position_f.x));
-				cur_vertex->screen_position_i.y = static_cast<int>(floor(cur_vertex->screen_position_f.y));
-				cur_vertex->screen_position_f.x = cur_vertex->screen_position_i.x + 0.5f;
-				cur_vertex->screen_position_f.y = cur_vertex->screen_position_i.y + 0.5f;
+			// 把对应model的三点的attributes设置给对应shader的attributes
+			for (int j = 0; j < 3; j++) {
+				attributes[j].position_os = model->attributes_[i + j].position_os;
+				attributes[j].texcoord = model->attributes_[i + j].texcoord;
+				attributes[j].normal_os = model->attributes_[i + j].normal_os;
+				attributes[j].tangent_os = model->attributes_[i + j].tangent_os;
 			}
-			RasterizeTriangle(raster_vertex, false);
-			counter++;
+			// 顶点变换
+			for (int k = 0; k < 3; k++) {
+				vertex_[k].context.varying_float.clear();
+				vertex_[k].context.varying_vec2f.clear();
+				vertex_[k].context.varying_vec3f.clear();
+				vertex_[k].context.varying_vec4f.clear();
+
+				// 执行顶点着色程序，返回裁剪空间中的顶点坐标，此时没有进行透视除法
+				vertex_[k].ws_position = uniform_buffer_->model_matrix * attributes[k].position_os.xyz1();
+				vertex_[k].cs_position = vertex_shader_(k, vertex_[k].context);
+				vertex_[k].has_transformed = false;
+			}
+
+			/*
+			* 裁剪空间中的背面剔除：
+			*
+			* 在观察空间中进行判断，观察空间使用右手坐标系，即相机看向z轴负方向
+			* 判断三角形朝向，剔除背对相机的三角形
+			* 由于相机看向z轴负方向，因此三角形法线的z分量为负，说明背对相机
+			*
+			* 顶点顺序：
+			* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
+			*/
+			const Vec4f vector_01 = vertex_[1].cs_position - vertex_[0].cs_position;
+			const Vec4f vector_02 = vertex_[2].cs_position - vertex_[0].cs_position;
+			const Vec4f normal = vector_cross(vector_01, vector_02);
+			if (normal.z < 0) continue;
+
+			/*
+			* 裁剪空间中的近平面裁剪：
+			*
+			* 根据三角面的三个顶点与平面形成的四种情况，对三角面进行裁剪
+			*
+			* 顶点顺序：
+			* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
+			*/
+
+			int in_vertex_count = 0; // 在近平面内的顶点个数
+			if (IsInsidePlane(Z_NEAR, vertex_[0].cs_position) &&
+				IsInsidePlane(Z_NEAR, vertex_[1].cs_position) &&
+				IsInsidePlane(Z_NEAR, vertex_[2].cs_position))
+			{
+				in_vertex_count = 3;
+				clip_vertex_[0] = &vertex_[0];
+				clip_vertex_[1] = &vertex_[1];
+				clip_vertex_[2] = &vertex_[2];
+			}
+			else
+			{
+				// 在裁剪空间中，针对近裁剪平面进行裁剪
+				in_vertex_count = ClipWithPlane(Z_NEAR, vertex_);
+			}
+
+			// 接下来就对裁剪后得到的3个或4个顶点所形成的1个或2个三角面进行光栅化
+			for (int i = 0; i < in_vertex_count - 2; i++) {
+				Vertex* raster_vertex[3] = { clip_vertex_[0], clip_vertex_[i + 1], clip_vertex_[i + 2] };
+
+				for (int k = 0; k < 3; k++) {
+					Vertex* cur_vertex = raster_vertex[k];
+
+					// 透视除法
+					cur_vertex->w_reciprocal = 1.0f / cur_vertex->cs_position.w;
+					cur_vertex->cs_position *= cur_vertex->w_reciprocal;
+
+					// 屏幕映射
+					cur_vertex->screen_position_f.x = (cur_vertex->cs_position.x + 1.0f) * static_cast<float>(frame_buffer_width_ - 1) * 0.5f;
+					cur_vertex->screen_position_f.y = (cur_vertex->cs_position.y + 1.0f) * static_cast<float>(frame_buffer_height_ - 1) * 0.5f;
+
+					// 计算整数屏幕坐标
+					cur_vertex->screen_position_i.x = static_cast<int>(floor(cur_vertex->screen_position_f.x));
+					cur_vertex->screen_position_i.y = static_cast<int>(floor(cur_vertex->screen_position_f.y));
+					cur_vertex->screen_position_f.x = cur_vertex->screen_position_i.x + 0.5f;
+					cur_vertex->screen_position_f.y = cur_vertex->screen_position_i.y + 0.5f;
+				}
+				RasterizeTriangle(raster_vertex, false);
+				counter++;
+			}
 		}
+		data_buffer_->MoveToNextModel();
 	}
 	window_->SetLogMessage("SurfaceBeenDrawn", "SurfaceBeenDrawn: "+std::to_string(counter));
 }
@@ -474,7 +481,7 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowM
 
 			// 接下来就是插值环节，该像素位于三角形内部，根据其重心坐标，插值每一个顶点属性
 			// 首先插值深度
-			float depth =
+			float depth = 
 				vertex[0]->cs_position.z * bc_p0 +
 				vertex[1]->cs_position.z * bc_p1 +
 				vertex[2]->cs_position.z * bc_p2;
@@ -482,14 +489,13 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowM
 			// 保证深度缓存的深度为该像素位置离摄像机最近的片元
 			if (1.0f - depth <= data_buffer_->depth_buffer_[y][x]) continue;
 			data_buffer_->depth_buffer_[y][x] = 1.0f - depth;
-			// std::cout << "depth: " << depth << " " << "depth_buffer" << data_buffer_->depth_buffer_[y][x] << std::endl;
 
 
 			// 准备为当前各像素的varying进行插值
 			// 准备为当前像素的各项 varying 进行插值
 
 			if (is_Rendering_ShadowMap) {
-				// SetPixel(x, y, Vec4f(1.0f - depth));
+				SetPixel(x, y, Vec4f(1.0f - depth));
 				// std::cout << 1.0f-depth << std::endl;
 				continue; // 如果正在渲染阴影贴图，那么就不需要插值各项属性了，因为用不上pixelshader
 			}
@@ -560,13 +566,17 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowM
 
 				shadowScreenPos.x = static_cast<int>((csPos.x + 1.0f) * static_cast<float>(shadow_buffer_width_ - 1) * 0.5f);
 				shadowScreenPos.y = static_cast<int>((csPos.y + 1.0f) * static_cast<float>(shadow_buffer_height_ - 1) * 0.5f);
+
+				// 避免数组越界
+				if (shadowScreenPos.x < 0 || shadowScreenPos.x >= shadow_buffer_width_ || shadowScreenPos.y < 0 || shadowScreenPos.y >= shadow_buffer_height_) {
+					SetPixel(x, y, color);
+					continue;
+				}
+
 				// 阴影bias
 				float shadow_bias = .008f;
 				if (1 - depthFromLight + shadow_bias <= data_buffer_->shadow_buffer_[shadowScreenPos.y][shadowScreenPos.x]) {
 					color *= 0.3f;
-				}
-				if (x == 275 && y == 250) {
-					std::cout << 1 - depthFromLight << " " << data_buffer_->shadow_buffer_[shadowScreenPos.y][shadowScreenPos.x] << std::endl;
 				}
 			}
 			SetPixel(x, y, color);

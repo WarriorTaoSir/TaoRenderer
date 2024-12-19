@@ -28,7 +28,11 @@ int main() {
 	DataBuffer* data_buffer = DataBuffer::GetInstance(); // 着色器所需数据
 
 	auto model = scene->current_model_; // 获取当前模型
-	data_buffer->SetModel(scene->current_model_); // 给数据缓冲设置当前模型
+	
+	for (int i = 0; i < 2; i++) {
+		data_buffer->model_list_.push_back(scene->current_model_);
+		scene->LoadNextModel();
+	}
 
 	window->SetLogMessage("model_message", model->PrintModelInfo());
 	window->SetLogMessage("model_name", "model name: " + scene->current_model_->model_name_);
@@ -46,7 +50,6 @@ int main() {
 	uniform_buffer->model_matrix = model->model_matrix_;
 	uniform_buffer->view_matrix = matrix_look_at(camera_position, camera_target, camera_up);
 	uniform_buffer->project_matrix = matrix_set_perspective(fov, camera->aspect_, camera->near_plane_, camera->far_plane_);
-	
 
 	uniform_buffer->light_direction = { 2, -2, -2 };
 	uniform_buffer->light_color = Vec3f(1.0f);
@@ -54,8 +57,8 @@ int main() {
 
 	// 配置阴影相关矩阵
 	uniform_buffer->shadow_view_matrix = matrix_look_at(camera_target - uniform_buffer->light_direction, camera_target, camera_up);
-	uniform_buffer->shadow_project_matrix = matrix_set_perspective(fov, camera->aspect_, camera->near_plane_, camera->far_plane_);
-	//uniform_buffer->shadow_project_matrix = matrix_set_orthograhpic(width*0.5f, -width * 0.5f, height*0.5f, -height*0.5f, camera->near_plane_, camera->far_plane_);
+	// uniform_buffer->shadow_project_matrix = matrix_set_perspective(fov, camera->aspect_, camera->near_plane_, camera->far_plane_);
+	uniform_buffer->shadow_project_matrix = matrix_set_orthograhpic(width*0.5f, -width * 0.5f, height*0.5f, -height*0.5f, camera->near_plane_, camera->far_plane_);
 
 	uniform_buffer->CalculateRestMatrix();
 	data_buffer->SetUniformBuffer(uniform_buffer); // 给数据缓冲设置Uniform
@@ -71,7 +74,7 @@ int main() {
 	const auto renderer = new TaoRenderer(width, height);
 	// 设置渲染状态
 	renderer->SetRenderState(false, true);	// 渲染线框以及填充像素
-	renderer->render_shadow_ = false;		// 渲染阴影
+	renderer->render_shadow_ = true;		// 渲染阴影
 
 #pragma endregion
 

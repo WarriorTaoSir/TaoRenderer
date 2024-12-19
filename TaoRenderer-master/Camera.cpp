@@ -88,7 +88,7 @@ void Camera::HandleInputEvents()
 	HandleMouseEvents();
 	HandleKeyEvents();
 
-	UpdateUniformBuffer(data_buffer_->GetUniformBuffer(), data_buffer_->GetModel()->model_matrix_);
+	UpdateUniformBuffer(data_buffer_->GetUniformBuffer(), data_buffer_->GetModelBeingRendered()->model_matrix_);
 }
 
 // 处理鼠标事件

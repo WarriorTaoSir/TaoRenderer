@@ -51,7 +51,7 @@ Vec4f DefaultShader::VertexShaderFunction(int index, Varyings& output) const
 Vec4f DefaultShader::PixelShaderFunction(Varyings& input) const {
 	// 从DataBuffer中获取所需数据
 	UniformBuffer* uniform_buffer_ = dataBuffer_->GetUniformBuffer();
-	Model* model = dataBuffer_->GetModel();
+	Model* model = dataBuffer_->GetModelBeingRendered();
 	
 	Vec2f uv = input.varying_vec2f[VARYING_TEXCOORD];				// 获取UV
 	Vec3f normal_ws = input.varying_vec3f[VARYING_NORMAL_WS];		// 获取法向量

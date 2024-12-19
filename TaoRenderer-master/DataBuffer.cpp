@@ -25,7 +25,6 @@ DataBuffer* DataBuffer::GetInstance()
 DataBuffer::DataBuffer() {
 	uniform_buffer_ = nullptr;
 	attributes_ = new Attributes[3];
-	model_ = nullptr;
 }
 
 // 释放在构造函数中new的内存
@@ -37,16 +36,8 @@ DataBuffer::~DataBuffer() {
 	return uniform_buffer_;
 }
 
- Model* DataBuffer::GetModel() const {
-	return model_;
-}
-
 void DataBuffer::SetUniformBuffer(UniformBuffer* uniform_buffer) {
 	uniform_buffer_ = uniform_buffer;
-}
-
-void DataBuffer::SetModel(Model* model) {
-	model_ = model;
 }
 
 void DataBuffer::Init(int height, int width) {
@@ -60,9 +51,24 @@ void DataBuffer::Init(int height, int width) {
 		depth_buffer_[i] = new float[width_];
 		shadow_buffer_[i] = new float[width_];
 	}
+
+	current_model_index_ = 0;
 }
 
 void DataBuffer::CopyShadowBuffer() {
 	for (int i = 0; i < height_; i++)
 		std::memcpy(shadow_buffer_[i], depth_buffer_[i], sizeof(float) * width_);
+}
+
+void DataBuffer::MoveToNextModel() {
+	current_model_index_++;
+	if (current_model_index_ >= model_list_.size()) {
+		current_model_index_ = 0;
+	}
+	uniform_buffer_->model_matrix = GetModelBeingRendered()->model_matrix_;
+	uniform_buffer_->CalculateRestMatrix();
+}
+
+Model* DataBuffer::GetModelBeingRendered() {
+	return model_list_[current_model_index_];
 }
