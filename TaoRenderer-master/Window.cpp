@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdio>
 #include <ranges>
+#include "resource.h"
 
 Window* Window::window_ = nullptr;
 
@@ -59,6 +60,8 @@ void Window::WindowInit(const int width, const int height, const char* title)
 	SetWindowPos(hwnd_, nullptr, sx, sy, wx, wy, (SWP_NOCOPYBITS | SWP_NOZORDER | SWP_SHOWWINDOW));
 	SetForegroundWindow(hwnd_);
 	ShowWindow(hwnd_, SW_NORMAL);
+
+
 
 	// 消息分派
 	MessageDispatch();
@@ -155,8 +158,8 @@ void Window::RegisterWindowClass(const char* title)
 	wc.cbClsExtra = 0;														//紧跟在窗口类尾部的一块额外空间，不用则设为0
 	wc.cbWndExtra = 0;														//紧跟在窗口实例尾部的一块额外空间，不用则设为0
 	wc.hInstance = GetModuleHandle(nullptr);								//当前实例句柄
-	wc.hIcon = LoadIcon(nullptr, IDI_APPLICATION);					//任务栏图标
-	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);					//光标样式
+	wc.hIcon = LoadIcon(wc.hInstance, MAKEINTRESOURCE(IDI_ICON1));			//任务栏图标
+	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);							//光标样式
 	wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));	//背景样式
 	wc.lpszMenuName = nullptr;												//菜单
 	wc.lpszClassName = title;												//该窗口类的名字

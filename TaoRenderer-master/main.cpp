@@ -44,12 +44,13 @@ int main() {
 	const Vec3f camera_target = { 0, 0, 0 };	// 相机看向的位置
 	const Vec3f camera_up = { 0, 1, 0 };		// 相机向上的位置
 	constexpr float fov = 70.0f;				// 相加的垂直FOV
-	auto* camera = new Camera(camera_position, camera_target, camera_up, fov, static_cast<float>(width) / height);
+	const float aspect = static_cast<float>(width) / height;
+	auto* camera = new Camera(camera_position, camera_target, camera_up, fov, aspect);
 
 	const auto uniform_buffer = new UniformBuffer();
 	uniform_buffer->model_matrix = model->model_matrix_;
 	uniform_buffer->view_matrix = matrix_look_at(camera_position, camera_target, camera_up);
-	uniform_buffer->project_matrix = matrix_set_perspective(fov, camera->aspect_, camera->near_plane_, camera->far_plane_);
+	uniform_buffer->project_matrix = camera->GetProjectionMatrix();
 
 	uniform_buffer->light_direction = { 2, -2, -2 };
 	uniform_buffer->light_color = Vec3f(1.0f);
@@ -57,8 +58,9 @@ int main() {
 
 	// 配置阴影相关矩阵
 	uniform_buffer->shadow_view_matrix = matrix_look_at(camera_target - uniform_buffer->light_direction, camera_target, camera_up);
-	// uniform_buffer->shadow_project_matrix = matrix_set_perspective(fov, camera->aspect_, camera->near_plane_, camera->far_plane_);
-	uniform_buffer->shadow_project_matrix = matrix_set_orthograhpic(width*0.5f, -width * 0.5f, height*0.5f, -height*0.5f, camera->near_plane_, camera->far_plane_);
+	uniform_buffer->shadow_project_matrix = matrix_set_perspective(fov, camera->aspect_, camera->near_plane_, camera->far_plane_);
+	float ortho_height = 2 * tan(0.5f * (fov / 180.0f * kPi)) * camera->far_plane_ * 1 / 100.0f;
+	uniform_buffer->shadow_project_matrix = matrix_set_orthograhpic(aspect * ortho_height *0.5f, -aspect * ortho_height * 0.5f, ortho_height *0.5f, -ortho_height *0.5f, camera->near_plane_, camera->far_plane_);
 
 	uniform_buffer->CalculateRestMatrix();
 	data_buffer->SetUniformBuffer(uniform_buffer); // 给数据缓冲设置Uniform
@@ -75,6 +77,12 @@ int main() {
 	// 设置渲染状态
 	renderer->SetRenderState(false, true);	// 渲染线框以及填充像素
 	renderer->render_shadow_ = true;		// 渲染阴影
+
+	// 设置窗口信息
+	if(camera->is_perspective_)
+		window->SetLogMessage("Projection Mode", "Projection Mode : Perspective");
+	else
+		window->SetLogMessage("Projection Mode", "Projection Mode : Orthographic");
 
 #pragma endregion
 

@@ -180,12 +180,24 @@
     <ClInclude Include="Math.h" />
     <ClInclude Include="Matrix.h" />
     <ClInclude Include="Model.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="TaoRenderer.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Utility.h" />
     <ClInclude Include="Vector.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="TaoRenderer-master.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\..\..\..\Users\Lezduit\OneDrive\图片\favicon.ico" />
+    <Image Include="..\..\..\..\Users\Lezduit\OneDrive\图片\光标.png" />
+    <Image Include="..\..\..\..\Users\Lezduit\OneDrive\图片\游戏.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cursor1.cur" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

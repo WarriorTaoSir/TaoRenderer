@@ -172,11 +172,11 @@ inline static Mat4x4f matrix_set_orthograhpic(float right, float left, float top
 
 	m.m[0][0] = 2 / (right - left);
 	m.m[1][1] = 2 / (top - bottom);
-	m.m[2][2] = 1.0f / (far - n);
+	m.m[2][2] = -1.0f / (far - n);
 	m.m[3][3] = 1;
 	m.m[0][3] = - (right + left) / (right - left);
 	m.m[1][3] = -(top + bottom) / (top - bottom);
-	m.m[2][3] = - n / (far - n);
+	m.m[2][3] = n / (far - n);
 
 	return m;
 }

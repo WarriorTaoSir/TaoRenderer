@@ -10,6 +10,9 @@
 Camera::Camera(const Vec3f& position, const Vec3f& target, const Vec3f& up, float fov, float aspect) :
 	position_(position), target_(target), up_(up), fov_(fov), aspect_(aspect)
 {	
+	// 默认为 透视投影 
+	is_perspective_ = true;
+	scale_factor_ = 1 / 500.0f;
 	// 相机远近平面设置，可以暴露为参数
 	near_plane_ = 0.5f; 
 	far_plane_ = 1000.0f;
@@ -59,8 +62,12 @@ void Camera::UpdateCameraPose()
 
 	// 鼠标滚轮控制缩放，也就是控制radius的大小
 	if (window_->mouse_buttons_[2])
-	{
+	{	
+		// 对于透视投影来说，摄像机距离就可以影响画面物体大小
 		radius *= static_cast<float>(pow(0.95, window_->mouse_info_.mouse_wheel_delta));
+		// 对于正交投影来说，可以通过一个系数来改变画幅，从而影响物体大小
+		scale_factor_ *= static_cast<float>(pow(0.95, window_->mouse_info_.mouse_wheel_delta));
+
 		window_->mouse_buttons_[2] = 0;
 	}
 	
@@ -120,6 +127,18 @@ void Camera::HandleKeyEvents()
 	{
 		position_ += 0.05f * axis_v_;
 	}
+	// 透视投影
+	if (window_->keys_['P'])
+	{	
+		window_->SetLogMessage("Projection Mode", "Projection Mode : Perspective");
+		is_perspective_ = true;
+	}
+	// 正交投影
+	if (window_->keys_['O']) {
+		window_->SetLogMessage("Projection Mode", "Projection Mode : Orthographic");
+		is_perspective_ = false;
+	}
+
 	//if (window_->keys_['W'])
 	//{
 	//	position_ += 0.05f * axis_u_;
@@ -156,11 +175,22 @@ void Camera::UpdateUniformBuffer(UniformBuffer* uniform_buffer, const Mat4x4f& m
 {
 	uniform_buffer->model_matrix = model_matrix;
 	uniform_buffer->view_matrix = matrix_look_at(position_, target_, up_);
-	uniform_buffer->project_matrix = matrix_set_perspective(fov_, aspect_, near_plane_, far_plane_);;
+	uniform_buffer->project_matrix = GetProjectionMatrix();
 
 	uniform_buffer->CalculateRestMatrix();
 
 	uniform_buffer->camera_position = position_;
+}
+
+Mat4x4f Camera::GetProjectionMatrix() const
+{
+	if (is_perspective_) {
+		return matrix_set_perspective(fov_, aspect_, near_plane_, far_plane_);
+	}
+	else {
+		float ortho_height = 2 * tan(0.5f * (fov_ / 180.0f * kPi)) * far_plane_ * scale_factor_;
+		return matrix_set_orthograhpic(aspect_ * ortho_height * 0.5f, -aspect_ * ortho_height * 0.5f, ortho_height * 0.5f, -ortho_height * 0.5f, near_plane_, far_plane_);
+	}
 }
 
 void Camera::UpdateSkyBoxUniformBuffer(UniformBuffer* uniform_buffer) const

@@ -18,7 +18,7 @@ inline std::vector<std::string> model_paths =
 inline std::vector<Mat4x4f> model_matrices =
 {
 	matrix_set_rotate(1.0f, 0.0f, 0.0f, -kPi * 0.5f) * matrix_set_scale(1, 1, 1),
-	matrix_set_rotate(0.0f, -1.0f, 0.0f, -kPi * 0.5f) * matrix_set_translate(0.0f,-2.0f,0.0f) * matrix_set_scale(3.0f, 3.0f,3.0f)
+	matrix_set_rotate(0.0f, -1.0f, 0.0f, -kPi * 0.5f) * matrix_set_translate(0.0f,-1.5f,0.0f) * matrix_set_scale(3.0f, 3.0f,3.0f)
 };
 
 class Scene

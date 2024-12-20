@@ -29,7 +29,7 @@ void TaoRenderer::Init(const int width, const int height)
 	shadow_buffer_height_ = height;
 
 	// 初始化前景色和背景色
-	color_foreground_ = Vec4f(0.0f);
+	color_foreground_ = Vec4f(1.0f);
 	color_background_ = Vec4f(0.0f);
 	//color_background_ = Vec4f(0.5f, 1.0f, 1.0f, 1.0f);
 
@@ -475,12 +475,24 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowM
 			float bc_denominator = e0 + e1 + e2;
 			bc_denominator = 1.0f / bc_denominator;
 
+			// 透视不正确的插值
 			float bc_p0 = e0 * bc_denominator;
 			float bc_p1 = e1 * bc_denominator;
 			float bc_p2 = e2 * bc_denominator;
 
+			// 计算透视正确的中心坐标
+			float bc_correct_denominator =
+				e0 * edge_equation_[0].w_reciprocal +
+				e1 * edge_equation_[1].w_reciprocal +
+				e2 * edge_equation_[2].w_reciprocal;
+			bc_correct_denominator = 1.0f / bc_correct_denominator;
+
+			float bc_correct_p0 = e0 * edge_equation_[0].w_reciprocal * bc_correct_denominator;
+			float bc_correct_p1 = e1 * edge_equation_[1].w_reciprocal * bc_correct_denominator;
+			float bc_correct_p2 = e2 * edge_equation_[2].w_reciprocal * bc_correct_denominator;
+
 			// 接下来就是插值环节，该像素位于三角形内部，根据其重心坐标，插值每一个顶点属性
-			// 首先插值深度
+			// 首先插值深度, 但是不能用透视正确的重心坐标来插值重心，
 			float depth = 
 				vertex[0]->cs_position.z * bc_p0 +
 				vertex[1]->cs_position.z * bc_p1 +
@@ -496,7 +508,7 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowM
 
 			if (is_Rendering_ShadowMap) {
 				SetPixel(x, y, Vec4f(1.0f - depth));
-				// std::cout << 1.0f-depth << std::endl;
+				std::cout << 1.0f-depth << std::endl;
 				continue; // 如果正在渲染阴影贴图，那么就不需要插值各项属性了，因为用不上pixelshader
 			}
 
@@ -510,7 +522,7 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowM
 					float f0 = context_p0.varying_float[key];
 					float f1 = context_p1.varying_float[key];
 					float f2 = context_p2.varying_float[key];
-					current_varyings_.varying_float[key] = bc_p0 * f0 + bc_p1 * f1 + bc_p2 * f2;
+					current_varyings_.varying_float[key] = bc_correct_p0 * f0 + bc_correct_p1 * f1 + bc_correct_p2 * f2;
 				}
 			}
 			if (!context_p0.varying_vec2f.empty()) {
@@ -518,7 +530,7 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowM
 					const Vec2f& f0 = context_p0.varying_vec2f[key];
 					const Vec2f& f1 = context_p1.varying_vec2f[key];
 					const Vec2f& f2 = context_p2.varying_vec2f[key];
-					current_varyings_.varying_vec2f[key] = bc_p0 * f0 + bc_p1 * f1 + bc_p2 * f2;
+					current_varyings_.varying_vec2f[key] = bc_correct_p0 * f0 + bc_correct_p1 * f1 + bc_correct_p2 * f2;
 				}
 			}
 			if (!context_p0.varying_vec3f.empty()) {
@@ -526,7 +538,7 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowM
 					const Vec3f& f0 = context_p0.varying_vec3f[key];
 					const Vec3f& f1 = context_p1.varying_vec3f[key];
 					const Vec3f& f2 = context_p2.varying_vec3f[key];
-					current_varyings_.varying_vec3f[key] = bc_p0 * f0 + bc_p1 * f1 + bc_p2 * f2;
+					current_varyings_.varying_vec3f[key] = bc_correct_p0 * f0 + bc_correct_p1 * f1 + bc_correct_p2 * f2;
 				}
 			}
 			if (!context_p0.varying_vec4f.empty()) {
@@ -534,7 +546,7 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowM
 					const Vec4f& f0 = context_p0.varying_vec4f[key];
 					const Vec4f& f1 = context_p1.varying_vec4f[key];
 					const Vec4f& f2 = context_p2.varying_vec4f[key];
-					current_varyings_.varying_vec4f[key] = bc_p0 * f0 + bc_p1 * f1 + bc_p2 * f2;
+					current_varyings_.varying_vec4f[key] = bc_correct_p0 * f0 + bc_correct_p1 * f1 + bc_correct_p2 * f2;
 				}
 			}
 
@@ -551,7 +563,7 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowM
 				Vec4f worldPos0 = vertex[0]->context.varying_vec3f[1].xyz1();
 				Vec4f worldPos1 = vertex[1]->context.varying_vec3f[1].xyz1();
 				Vec4f worldPos2 = vertex[2]->context.varying_vec3f[1].xyz1();
-				Vec4f worldPos = worldPos0 * bc_p0 + worldPos1 * bc_p1 + worldPos2 * bc_p2;
+				Vec4f worldPos = worldPos0 * bc_correct_p0 + worldPos1 * bc_correct_p1 + worldPos2 * bc_correct_p2;
 				Vec4f csPos = data_buffer_->GetUniformBuffer()->shadow_VP_matrix * worldPos;
 
 				// 透视除法
@@ -574,7 +586,7 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowM
 				}
 
 				// 阴影bias
-				float shadow_bias = .008f;
+				float shadow_bias = .0001f;
 				if (1 - depthFromLight + shadow_bias <= data_buffer_->shadow_buffer_[shadowScreenPos.y][shadowScreenPos.x]) {
 					color *= 0.3f;
 				}

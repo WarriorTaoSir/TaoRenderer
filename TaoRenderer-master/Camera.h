@@ -18,6 +18,9 @@ public:
 	Vec3f position_, origin_position_;	// 相机的世界空间位置
 	Vec3f target_, origin_target_;		// 相机看向的世界空间位置
 	Vec3f up_;
+
+	bool is_perspective_;				// 是否为透视投影
+	float scale_factor_;				// 缩放系数
 	// 相机的up向量
 
 	/*
@@ -45,6 +48,9 @@ public:
 	void UpdateUniformBuffer(UniformBuffer* uniform_buffer, const Mat4x4f& model_matrix) const;
 	void UpdateSkyBoxUniformBuffer(UniformBuffer* uniform_buffer) const;
 	// void UpdateSkyboxMesh(SkyBoxShader* sky_box_shader) const;
+
+	// 获取当前投影矩阵
+	Mat4x4f GetProjectionMatrix() const;
 
 private:
 	// 更新相机姿态
