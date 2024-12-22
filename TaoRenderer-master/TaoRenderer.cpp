@@ -153,15 +153,16 @@ TaoRenderer::Vertex& TaoRenderer::GetIntersectVertex(ClipPlane clip_plane, Verte
 			break;
 		case TaoRenderer::Y_BOTTOM:
 			ratio = (p.y * c.w + p.w * c.w) / (p.y * c.w - c.y * p.w);
+			break;
 		case TaoRenderer::Z_NEAR:
-			// 由于DirectX将near plane映射到z = 0上，因此比例系数的计算公式有改变
-			ratio = (p.z * c.w) / (p.z * c.w - c.z * p.w);
+			// 由于DirectX将near plane映射到z = 0上，因此比例系数的计算公式有改变  // why
+			ratio = (p.z ) / (p.z  - c.z);
 			break;
 		case TaoRenderer::Z_FAR:
 			ratio = (p.z * c.w + p.w * c.w) / (p.z * c.w - c.z * p.w);
 			break;
 	}
-	// vertex
+
 	Vertex* new_vertex = new Vertex();
 	new_vertex->cs_position = vector_lerp(v1.cs_position, v2.cs_position, ratio); // 根据比率获取位置
 	
@@ -198,8 +199,8 @@ int TaoRenderer::ClipWithPlane(ClipPlane clip_plane, Vertex vertex[3]) {
 	const int vertex_count = 3;
 
 	for (int i = 0; i < vertex_count; i++) {
-		const int cur_index = i; // 当前顶点的序号
-		const int pre_index = (i - 1 + vertex_count) % vertex_count; // 逆时针方向前一个顶点的序号
+		const int cur_index = i;										// 当前顶点的序号
+		const int pre_index = (i - 1 + vertex_count) % vertex_count;	// 逆时针方向前一个顶点的序号
 		
 		Vec4f cur_vertex = vertex[cur_index].cs_position; // 当前顶点位置
 		Vec4f pre_vertex = vertex[pre_index].cs_position; // 按照顺序前一个顶点的位置
@@ -209,7 +210,8 @@ int TaoRenderer::ClipWithPlane(ClipPlane clip_plane, Vertex vertex[3]) {
 
 		// 异或，当两个顶点分别处于裁剪平面两端时，需要计算出一个新的顶点，把新顶点加到clip_vertex里
 		if (is_cur_inside ^ is_pre_inside) {
-			Vertex& new_vertex = GetIntersectVertex(clip_plane, vertex[cur_index], vertex[pre_index]);
+			// 计算得到新的顶点
+			Vertex& new_vertex = GetIntersectVertex(clip_plane, vertex[pre_index], vertex[cur_index]);
 			clip_vertex_[in_vertex_count++] = &new_vertex;
 		}
 		// 如果当前这个点在内部，把它加入到clip_vertex里
@@ -254,20 +256,7 @@ void TaoRenderer::DrawShadowMap()
 				vertex_[k].has_transformed = false;
 			}
 
-			/*
-			* 裁剪空间中的背面剔除：
-			*
-			* 在观察空间中进行判断，观察空间使用右手坐标系，即相机看向z轴负方向
-			* 判断三角形朝向，剔除背对相机的三角形
-			* 由于相机看向z轴负方向，因此三角形法线的z分量为负，说明背对相机
-			*
-			* 顶点顺序：
-			* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
-			*/
-			const Vec4f vector_01 = vertex_[1].cs_position - vertex_[0].cs_position;
-			const Vec4f vector_02 = vertex_[2].cs_position - vertex_[0].cs_position;
-			const Vec4f normal = vector_cross(vector_01, vector_02);
-			if (normal.z < 0) continue;
+
 
 			/*
 			* 裁剪空间中的近平面裁剪：
@@ -300,6 +289,9 @@ void TaoRenderer::DrawShadowMap()
 
 				for (int k = 0; k < 3; k++) {
 					Vertex* cur_vertex = raster_vertex[k];
+
+					if (cur_vertex->has_transformed) continue;
+					cur_vertex->has_transformed = true;
 					// 透视除法
 					cur_vertex->w_reciprocal = 1.0f / cur_vertex->cs_position.w;
 					cur_vertex->cs_position *= cur_vertex->w_reciprocal;
@@ -314,6 +306,21 @@ void TaoRenderer::DrawShadowMap()
 					cur_vertex->screen_position_f.x = cur_vertex->screen_position_i.x + 0.5f;
 					cur_vertex->screen_position_f.y = cur_vertex->screen_position_i.y + 0.5f;
 				}
+				/*
+				* NDC空间中的背面剔除：
+				*
+				* 在观察空间中进行判断，观察空间使用右手坐标系，即相机看向z轴负方向
+				* 判断三角形朝向，剔除背对相机的三角形
+				* 由于相机看向z轴负方向，因此三角形法线的z分量为负，说明背对相机
+				*
+				* 顶点顺序：
+				* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
+				*/
+				const Vec4f vector_01 = raster_vertex[1]->cs_position - raster_vertex[0]->cs_position;
+				const Vec4f vector_02 = raster_vertex[2]->cs_position - raster_vertex[0]->cs_position;
+				const Vec4f normal = vector_cross(vector_01, vector_02);
+				if (normal.z < 0) continue;
+
 				RasterizeTriangle(raster_vertex, true);
 			}
 		}
@@ -355,21 +362,6 @@ void TaoRenderer::DrawMesh()
 			}
 
 			/*
-			* 裁剪空间中的背面剔除：
-			*
-			* 在观察空间中进行判断，观察空间使用右手坐标系，即相机看向z轴负方向
-			* 判断三角形朝向，剔除背对相机的三角形
-			* 由于相机看向z轴负方向，因此三角形法线的z分量为负，说明背对相机
-			*
-			* 顶点顺序：
-			* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
-			*/
-			const Vec4f vector_01 = vertex_[1].cs_position - vertex_[0].cs_position;
-			const Vec4f vector_02 = vertex_[2].cs_position - vertex_[0].cs_position;
-			const Vec4f normal = vector_cross(vector_01, vector_02);
-			if (normal.z < 0) continue;
-
-			/*
 			* 裁剪空间中的近平面裁剪：
 			*
 			* 根据三角面的三个顶点与平面形成的四种情况，对三角面进行裁剪
@@ -401,6 +393,8 @@ void TaoRenderer::DrawMesh()
 				for (int k = 0; k < 3; k++) {
 					Vertex* cur_vertex = raster_vertex[k];
 
+					if (cur_vertex->has_transformed)continue;
+					cur_vertex->has_transformed = true;
 					// 透视除法
 					cur_vertex->w_reciprocal = 1.0f / cur_vertex->cs_position.w;
 					cur_vertex->cs_position *= cur_vertex->w_reciprocal;
@@ -415,13 +409,28 @@ void TaoRenderer::DrawMesh()
 					cur_vertex->screen_position_f.x = cur_vertex->screen_position_i.x + 0.5f;
 					cur_vertex->screen_position_f.y = cur_vertex->screen_position_i.y + 0.5f;
 				}
+				/*
+				* NDC空间中的背面剔除：
+				*
+				* 在观察空间中进行判断，观察空间使用右手坐标系，即相机看向z轴负方向
+				* 判断三角形朝向，剔除背对相机的三角形
+				* 由于相机看向z轴负方向，因此三角形法线的z分量为负，说明背对相机
+				*
+				* 顶点顺序：
+				* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
+				*/
+				const Vec4f vector_01 = raster_vertex[1]->cs_position - raster_vertex[0]->cs_position;
+				const Vec4f vector_02 = raster_vertex[2]->cs_position - raster_vertex[0]->cs_position;
+				const Vec4f normal = vector_cross(vector_01, vector_02);
+				if (normal.z < 0) continue;
+
 				RasterizeTriangle(raster_vertex, false);
 				counter++;
 			}
 		}
 		data_buffer_->MoveToNextModel();
 	}
-	window_->SetLogMessage("SurfaceBeenDrawn", "SurfaceBeenDrawn: "+std::to_string(counter));
+	window_->SetLogMessage("SurfaceBeenDrawn", "SurfaceBeenDrawn: " + std::to_string(counter));
 }
 
 void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowMap) {

@@ -193,6 +193,7 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\..\..\Users\Lezduit\OneDrive\图片\favicon.ico" />
+    <Image Include="..\..\..\..\Users\Lezduit\OneDrive\图片\favicon2.ico" />
     <Image Include="..\..\..\..\Users\Lezduit\OneDrive\图片\光标.png" />
     <Image Include="..\..\..\..\Users\Lezduit\OneDrive\图片\游戏.png" />
   </ItemGroup>

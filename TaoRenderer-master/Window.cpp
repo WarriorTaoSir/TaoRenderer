@@ -158,7 +158,7 @@ void Window::RegisterWindowClass(const char* title)
 	wc.cbClsExtra = 0;														//紧跟在窗口类尾部的一块额外空间，不用则设为0
 	wc.cbWndExtra = 0;														//紧跟在窗口实例尾部的一块额外空间，不用则设为0
 	wc.hInstance = GetModuleHandle(nullptr);								//当前实例句柄
-	wc.hIcon = LoadIcon(wc.hInstance, MAKEINTRESOURCE(IDI_ICON1));			//任务栏图标
+	wc.hIcon = LoadIcon(wc.hInstance, MAKEINTRESOURCE(IDI_ICON2));			//任务栏图标
 	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);							//光标样式
 	wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));	//背景样式
 	wc.lpszMenuName = nullptr;												//菜单

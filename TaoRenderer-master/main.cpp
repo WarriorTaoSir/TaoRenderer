@@ -58,7 +58,7 @@ int main() {
 
 	// ÅäÖÃÒõÓ°Ïà¹Ø¾ØÕó
 	uniform_buffer->shadow_view_matrix = matrix_look_at(camera_target - uniform_buffer->light_direction, camera_target, camera_up);
-	uniform_buffer->shadow_project_matrix = matrix_set_perspective(fov, camera->aspect_, camera->near_plane_, camera->far_plane_);
+	// uniform_buffer->shadow_project_matrix = matrix_set_perspective(fov, camera->aspect_, camera->near_plane_, camera->far_plane_);
 	float ortho_height = 2 * tan(0.5f * (fov / 180.0f * kPi)) * camera->far_plane_ * 1 / 100.0f;
 	uniform_buffer->shadow_project_matrix = matrix_set_orthograhpic(aspect * ortho_height *0.5f, -aspect * ortho_height * 0.5f, ortho_height *0.5f, -ortho_height *0.5f, camera->near_plane_, camera->far_plane_);
 

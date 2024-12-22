@@ -90,13 +90,16 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <Image Include="..\..\..\..\Users\Lezduit\OneDrive\图片\favicon.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="..\..\..\..\Users\Lezduit\OneDrive\图片\favicon2.ico">
+      <Filter>资源文件</Filter>
+    </Image>
     <Image Include="..\..\..\..\Users\Lezduit\OneDrive\图片\游戏.png">
       <Filter>资源文件</Filter>
     </Image>
     <Image Include="..\..\..\..\Users\Lezduit\OneDrive\图片\光标.png">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="..\..\..\..\Users\Lezduit\OneDrive\图片\favicon.ico">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>
