@@ -37,8 +37,6 @@ struct UniformBuffer
 	Vec3f light_color;			// 光照颜色
 	Vec3f camera_position;		// 相机方向
 
-	// 帧缓冲
-
 };
 
 #pragma endregion

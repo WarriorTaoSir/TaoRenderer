@@ -13,7 +13,10 @@ enum TextureType
 {
 	kTextureTypeBaseColor,
 	kTextureTypeNormal,
-	kTextureTypeRoughness
+	kTextureTypeRoughness,
+	kTextureTypeMetallic,
+	kTextureTypeOcclusion,
+	kTextureTypeEmission
 };
 
 // µ¥ÕÅÎÆÀíÌùÍ¼

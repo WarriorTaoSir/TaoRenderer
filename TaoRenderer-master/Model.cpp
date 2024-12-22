@@ -28,10 +28,10 @@ Model::Model(const string& model_path, const Mat4x4f& model_matrix)
 	// 加载其他纹理
 	base_color_map_ = new Texture(GetTextureFileName(model_folder_, model_name_, kTextureTypeBaseColor, texture_format));
 	normal_map_ = new Texture(GetTextureFileName(model_folder_, model_name_, kTextureTypeNormal, texture_format));
-	/*roughness_map_ = new Texture(GetTextureFileName(model_folder_, model_name_, kTextureTypeRoughness, texture_format));*/
-	//metallic_map_ = new Texture(GetTextureFileName(model_folder_, model_name_, kTextureTypeMetallic, texture_format));
-	//occlusion_map_ = new Texture(GetTextureFileName(model_folder_, model_name_, kTextureTypeOcclusion, texture_format));
-	//emission_map_ = new Texture(GetTextureFileName(model_folder_, model_name_, kTextureTypeEmission, texture_format));
+	roughness_map_ = new Texture(GetTextureFileName(model_folder_, model_name_, kTextureTypeRoughness, texture_format));
+	metallic_map_ = new Texture(GetTextureFileName(model_folder_, model_name_, kTextureTypeMetallic, texture_format));
+	occlusion_map_ = new Texture(GetTextureFileName(model_folder_, model_name_, kTextureTypeOcclusion, texture_format));
+	emission_map_ = new Texture(GetTextureFileName(model_folder_, model_name_, kTextureTypeEmission, texture_format));
 	
 	model_matrix_ = model_matrix;
 }
@@ -228,10 +228,10 @@ Model::~Model()
 {
 	delete base_color_map_;
 	delete normal_map_;
-	//delete roughness_map_;
-	//delete metallic_map_;
-	//delete occlusion_map_;
-	//delete emission_map_;
+	delete roughness_map_;
+	delete metallic_map_;
+	delete occlusion_map_;
+	delete emission_map_;
 
 	attributes_.clear();
 }
@@ -244,9 +244,9 @@ std::string Model::GetTextureType(const TextureType texture_type)
 	case kTextureTypeBaseColor:			return "basecolor";
 	case kTextureTypeNormal:			return "normal";
 	case kTextureTypeRoughness:			return "roughness";
-	//case kTextureTypeMetallic:			return "metallic";
-	//case kTextureTypeOcclusion:			return "occlusion";
-	//case kTextureTypeEmission:			return "emission";
+	case kTextureTypeMetallic:			return "metallic";
+	case kTextureTypeOcclusion:			return "occlusion";
+	case kTextureTypeEmission:			return "emission";
 
 	default:							return "unknown";
 	}

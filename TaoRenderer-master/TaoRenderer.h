@@ -103,6 +103,8 @@ public:
 	DataBuffer* data_buffer_;	// 数据缓冲
 	Window* window_;			// 窗口
 
+	ShaderType current_shader_type_; //当前使用的shader类型
+
 private:
 	// 边缘方程
 	EdgeEquation edge_equation_[3];

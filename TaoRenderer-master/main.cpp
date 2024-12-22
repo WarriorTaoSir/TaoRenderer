@@ -69,7 +69,9 @@ int main() {
 
 #pragma region 初始化渲染器
 	// 初始化shader
-	const auto shader = new DefaultShader(uniform_buffer);
+	const auto blinn_phong_shader = new DefaultShader(uniform_buffer);
+	const auto pbr_shader = new PBRShader(uniform_buffer);
+	// const auto skybox_shader = new SkyBoxShader(uniform_buffer);
 	// 初始化阴影shader
 	const auto shadow_shader = new ShadowShader(uniform_buffer);
 	// 初始化渲染器
@@ -77,6 +79,9 @@ int main() {
 	// 设置渲染状态
 	renderer->SetRenderState(false, true);	// 渲染线框以及填充像素
 	renderer->render_shadow_ = true;		// 渲染阴影
+
+	// 设置默认使用的shader
+	renderer->current_shader_type_ = ShaderType::kBlinnPhongShader;
 
 	// 设置窗口信息
 	if(camera->is_perspective_)
@@ -87,21 +92,53 @@ int main() {
 #pragma endregion
 
 #pragma region 渲染循环
-
 	while (!window->is_close_) {
 		// 响应相机位置
 		camera->HandleInputEvents(); 
+		// 是否生成阴影
 		if (window->keys_['S']) renderer->render_shadow_ = true;
 		if (window->keys_['D']) renderer->render_shadow_ = false;
+
+		// 是Blinn-Phong着色模型还是Cook-Torrance着色模型
+		if (window->keys_['B'])
+		{
+			window->SetLogMessage("Shading Model", "Shading Model: Blinn-Phong");
+			renderer->current_shader_type_ = kBlinnPhongShader;
+			blinn_phong_shader->material_inspector_ = DefaultShader::kMaterialInspectorShaded;
+			window->RemoveLogMessage("Material Inspector");
+		}
+		else if (window->keys_['C'])
+		{
+			window->SetLogMessage("Shading Model", "Shading Model: Cook-Torrance");
+			renderer->current_shader_type_ = kPbrShader;
+			pbr_shader->material_inspector_ = PBRShader::kMaterialInspectorShaded;
+			window->RemoveLogMessage("Material Inspector");
+		}
+
+		// 判断当前shader类型，设置渲染器的VS与PS
+		switch (renderer->current_shader_type_)
+		{
+			case kBlinnPhongShader:
+				renderer->SetVertexShader(blinn_phong_shader->vertex_shader_);
+				renderer->SetPixelShader(blinn_phong_shader->pixel_shader_);
+
+				blinn_phong_shader->HandleKeyEvents();
+				break;
+			case kPbrShader:
+				renderer->SetVertexShader(pbr_shader->vertex_shader_);
+				renderer->SetPixelShader(pbr_shader->pixel_shader_);
+
+				pbr_shader->HandleKeyEvents();
+				break;
+			default:;
+		}
+
 		// 清除帧缓冲
 		renderer->ClearFrameBuffer(renderer->render_frame_ || renderer->render_pixel_, true);
 
 #pragma region 渲染Model
-		// 设置渲染器所使用的shader
-		renderer->SetVertexShader(shader->vertex_shader_);
-		renderer->SetPixelShader(shader->pixel_shader_);
+		// 设置shadow_shader
 		renderer->SetShadowVertexShader(shadow_shader->vertex_shader_);
-
 		// 使用渲染器将深度信息绘制到ShadowBuffer里
 		renderer->DrawShadowMap();
 		renderer->ClearFrameBuffer(renderer->render_frame_ || renderer->render_pixel_, true);
