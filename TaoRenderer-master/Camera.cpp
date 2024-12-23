@@ -94,8 +94,6 @@ void Camera::HandleInputEvents()
 	// 处理输入事件
 	HandleMouseEvents();
 	HandleKeyEvents();
-
-	UpdateUniformBuffer(data_buffer_->GetUniformBuffer(), data_buffer_->GetModelBeingRendered()->model_matrix_);
 }
 
 // 处理鼠标事件
@@ -195,10 +193,36 @@ Mat4x4f Camera::GetProjectionMatrix() const
 
 void Camera::UpdateSkyBoxUniformBuffer(UniformBuffer* uniform_buffer) const
 {
-	// TODO
+	uniform_buffer->model_matrix = matrix_set_scale(1.0f, 1.0f, 1.0f);
+	uniform_buffer->view_matrix = matrix_look_at(position_, target_, up_);
+	uniform_buffer->project_matrix = matrix_set_perspective(fov_, aspect_, near_plane_, far_plane_);
+
+	uniform_buffer->CalculateRestMatrix();
+
+	uniform_buffer->camera_position = position_;
 }
 
-//void Camera::UpdateSkyboxMesh(SkyBoxShader* sky_box_shader) const
-//{
-//	// TODO
-//}
+void Camera::UpdateSkyboxMesh(SkyBoxShader* sky_box_shader) const
+{
+	float fov = fov_ / 180.0f * kPi;
+	float yf = tan(fov * 0.5f);
+	float  xf = aspect_;
+
+	Vec3f right_top = axis_v_ + axis_r_ * xf + axis_u_ * yf;
+	Vec3f left_top = axis_v_ - axis_r_ * xf + axis_u_ * yf;
+	Vec3f left_bottom = axis_v_ - axis_r_ * xf - axis_u_ * yf;
+	Vec3f right_bottom = axis_v_ + axis_r_ * xf - axis_u_ * yf;
+
+	//Vec3f right_top = Vec3f(xf, yf, 1);
+	//Vec3f left_top = Vec3f(-xf, yf, 1);
+	//Vec3f left_bottom = Vec3f(-xf, -yf, 1);
+	//Vec3f right_bottom = Vec3f(xf, -yf, 1);
+
+	Vec3f camera_position = position_;
+	float far_plane = far_plane_ - 2;
+
+	sky_box_shader->plane_vertex_[0] = camera_position + far_plane * right_top;
+	sky_box_shader->plane_vertex_[1] = camera_position + far_plane * left_top;
+	sky_box_shader->plane_vertex_[2] = camera_position + far_plane * left_bottom;
+	sky_box_shader->plane_vertex_[3] = camera_position + far_plane * right_bottom;
+}

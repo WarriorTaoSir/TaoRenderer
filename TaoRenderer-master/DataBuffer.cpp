@@ -72,3 +72,11 @@ void DataBuffer::MoveToNextModel() {
 Model* DataBuffer::GetModelBeingRendered() {
 	return model_list_[current_model_index_];
 }
+
+void DataBuffer::UpdateInfoInScene(Scene* scene) {
+	irradiance_cubemap_ = scene->current_iblmap_->irradiance_cubemap_;
+	specular_cubemap_ = scene->current_iblmap_->specular_cubemap_;
+	brdf_lut_ = scene->current_iblmap_->brdf_lut_;
+	
+	skybox_cubemap_ = scene->current_iblmap_->skybox_cubemap_;
+}

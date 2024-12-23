@@ -47,7 +47,7 @@ public:
 	// 更新uniform buffer中的矩阵
 	void UpdateUniformBuffer(UniformBuffer* uniform_buffer, const Mat4x4f& model_matrix) const;
 	void UpdateSkyBoxUniformBuffer(UniformBuffer* uniform_buffer) const;
-	// void UpdateSkyboxMesh(SkyBoxShader* sky_box_shader) const;
+	void UpdateSkyboxMesh(SkyBoxShader* sky_box_shader) const;
 
 	// 获取当前投影矩阵
 	Mat4x4f GetProjectionMatrix() const;

@@ -37,6 +37,10 @@ void TaoRenderer::Init(const int width, const int height)
 	data_buffer_ = DataBuffer::GetInstance();
 	window_ = Window::GetInstance();
 
+	// 默认不是正在渲染阴影贴图与天空盒
+	is_rendering_shadowMap = false;
+	is_rendering_skybox = false;
+
 	// 数据缓冲初始化
 	data_buffer_->Init(height, width);
 
@@ -156,7 +160,7 @@ TaoRenderer::Vertex& TaoRenderer::GetIntersectVertex(ClipPlane clip_plane, Verte
 			break;
 		case TaoRenderer::Z_NEAR:
 			// 由于DirectX将near plane映射到z = 0上，因此比例系数的计算公式有改变  // why
-			ratio = (p.z ) / (p.z  - c.z);
+			ratio = (p.z) / (p.z - c.z);
 			break;
 		case TaoRenderer::Z_FAR:
 			ratio = (p.z * c.w + p.w * c.w) / (p.z * c.w - c.z * p.w);
@@ -230,10 +234,21 @@ int TaoRenderer::ClipWithPlane(ClipPlane clip_plane, Vertex vertex[3]) {
 void TaoRenderer::DrawShadowMap() 
 {
 	if (!render_shadow_) return;
+	
+	is_rendering_shadowMap = true;
+	DrawMesh();
+	// 此时的DepthBuffer，正是shadowBuffer
+	data_buffer_->CopyShadowBuffer();
+	is_rendering_shadowMap = false;
+}
+
+// 绘制网格体
+void TaoRenderer::DrawMesh()
+{	
+	UniformBuffer* uniform_buffer_ = data_buffer_->GetUniformBuffer();
 	Attributes* attributes = data_buffer_->attributes_;
+	int counter = 0; // 判断多少个三角面被绘制
 	for (auto model : data_buffer_->model_list_) {
-		// 更新模型矩阵和uniform buffer
-		
 		// 按照每三个顶点的方式，循环该模型所有顶点
 		for (size_t i = 0; i < model->attributes_.size(); i += 3)
 		{
@@ -252,11 +267,14 @@ void TaoRenderer::DrawShadowMap()
 				vertex_[k].context.varying_vec4f.clear();
 
 				// 执行顶点着色程序，返回裁剪空间中的顶点坐标，此时没有进行透视除法
-				vertex_[k].cs_position = shadow_vertex_shader_(k, vertex_[k].context);
+				vertex_[k].ws_position = uniform_buffer_->model_matrix * attributes[k].position_os.xyz1();
+
+				// 判断当前是否正在渲染阴影，如果是，则使用阴影shadow_vertex_shader
+				if(is_rendering_shadowMap) vertex_[k].cs_position = shadow_shader_->vertex_shader_(k, vertex_[k].context);
+				else vertex_[k].cs_position = vertex_shader_(k, vertex_[k].context);
+				
 				vertex_[k].has_transformed = false;
 			}
-
-
 
 			/*
 			* 裁剪空间中的近平面裁剪：
@@ -312,128 +330,25 @@ void TaoRenderer::DrawShadowMap()
 				* 在观察空间中进行判断，观察空间使用右手坐标系，即相机看向z轴负方向
 				* 判断三角形朝向，剔除背对相机的三角形
 				* 由于相机看向z轴负方向，因此三角形法线的z分量为负，说明背对相机
-				*
+				* 
 				* 顶点顺序：
 				* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
 				*/
 				const Vec4f vector_01 = raster_vertex[1]->cs_position - raster_vertex[0]->cs_position;
 				const Vec4f vector_02 = raster_vertex[2]->cs_position - raster_vertex[0]->cs_position;
 				const Vec4f normal = vector_cross(vector_01, vector_02);
-				if (normal.z < 0) continue;
+				if (normal.z <= 0) continue;
 
-				RasterizeTriangle(raster_vertex, true);
-			}
-		}
-		data_buffer_->MoveToNextModel();
-	}
-	
-	// 此时的DepthBuffer，正是shadowBuffer
-	data_buffer_->CopyShadowBuffer();
-}
-
-// 绘制网格体
-void TaoRenderer::DrawMesh() 
-{	
-	UniformBuffer* uniform_buffer_ = data_buffer_->GetUniformBuffer();
-	Attributes* attributes = data_buffer_->attributes_;
-	int counter = 0; // 判断多少个三角面被绘制
-	for (auto model : data_buffer_->model_list_) {
-		// 按照每三个顶点的方式，循环该模型所有顶点
-		for (size_t i = 0; i < model->attributes_.size(); i += 3)
-		{
-			// 把对应model的三点的attributes设置给对应shader的attributes
-			for (int j = 0; j < 3; j++) {
-				attributes[j].position_os = model->attributes_[i + j].position_os;
-				attributes[j].texcoord = model->attributes_[i + j].texcoord;
-				attributes[j].normal_os = model->attributes_[i + j].normal_os;
-				attributes[j].tangent_os = model->attributes_[i + j].tangent_os;
-			}
-			// 顶点变换
-			for (int k = 0; k < 3; k++) {
-				vertex_[k].context.varying_float.clear();
-				vertex_[k].context.varying_vec2f.clear();
-				vertex_[k].context.varying_vec3f.clear();
-				vertex_[k].context.varying_vec4f.clear();
-
-				// 执行顶点着色程序，返回裁剪空间中的顶点坐标，此时没有进行透视除法
-				vertex_[k].ws_position = uniform_buffer_->model_matrix * attributes[k].position_os.xyz1();
-				vertex_[k].cs_position = vertex_shader_(k, vertex_[k].context);
-				vertex_[k].has_transformed = false;
-			}
-
-			/*
-			* 裁剪空间中的近平面裁剪：
-			*
-			* 根据三角面的三个顶点与平面形成的四种情况，对三角面进行裁剪
-			*
-			* 顶点顺序：
-			* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
-			*/
-
-			int in_vertex_count = 0; // 在近平面内的顶点个数
-			if (IsInsidePlane(Z_NEAR, vertex_[0].cs_position) &&
-				IsInsidePlane(Z_NEAR, vertex_[1].cs_position) &&
-				IsInsidePlane(Z_NEAR, vertex_[2].cs_position))
-			{
-				in_vertex_count = 3;
-				clip_vertex_[0] = &vertex_[0];
-				clip_vertex_[1] = &vertex_[1];
-				clip_vertex_[2] = &vertex_[2];
-			}
-			else
-			{
-				// 在裁剪空间中，针对近裁剪平面进行裁剪
-				in_vertex_count = ClipWithPlane(Z_NEAR, vertex_);
-			}
-
-			// 接下来就对裁剪后得到的3个或4个顶点所形成的1个或2个三角面进行光栅化
-			for (int i = 0; i < in_vertex_count - 2; i++) {
-				Vertex* raster_vertex[3] = { clip_vertex_[0], clip_vertex_[i + 1], clip_vertex_[i + 2] };
-
-				for (int k = 0; k < 3; k++) {
-					Vertex* cur_vertex = raster_vertex[k];
-
-					if (cur_vertex->has_transformed)continue;
-					cur_vertex->has_transformed = true;
-					// 透视除法
-					cur_vertex->w_reciprocal = 1.0f / cur_vertex->cs_position.w;
-					cur_vertex->cs_position *= cur_vertex->w_reciprocal;
-
-					// 屏幕映射
-					cur_vertex->screen_position_f.x = (cur_vertex->cs_position.x + 1.0f) * static_cast<float>(frame_buffer_width_ - 1) * 0.5f;
-					cur_vertex->screen_position_f.y = (cur_vertex->cs_position.y + 1.0f) * static_cast<float>(frame_buffer_height_ - 1) * 0.5f;
-
-					// 计算整数屏幕坐标
-					cur_vertex->screen_position_i.x = static_cast<int>(floor(cur_vertex->screen_position_f.x));
-					cur_vertex->screen_position_i.y = static_cast<int>(floor(cur_vertex->screen_position_f.y));
-					cur_vertex->screen_position_f.x = cur_vertex->screen_position_i.x + 0.5f;
-					cur_vertex->screen_position_f.y = cur_vertex->screen_position_i.y + 0.5f;
-				}
-				/*
-				* NDC空间中的背面剔除：
-				*
-				* 在观察空间中进行判断，观察空间使用右手坐标系，即相机看向z轴负方向
-				* 判断三角形朝向，剔除背对相机的三角形
-				* 由于相机看向z轴负方向，因此三角形法线的z分量为负，说明背对相机
-				*
-				* 顶点顺序：
-				* obj格式中默认的顶点顺序是逆时针，即顶点v1，v2，v3按照逆时针顺序排列
-				*/
-				const Vec4f vector_01 = raster_vertex[1]->cs_position - raster_vertex[0]->cs_position;
-				const Vec4f vector_02 = raster_vertex[2]->cs_position - raster_vertex[0]->cs_position;
-				const Vec4f normal = vector_cross(vector_01, vector_02);
-				if (normal.z < 0) continue;
-
-				RasterizeTriangle(raster_vertex, false);
+				RasterizeTriangle(raster_vertex);
 				counter++;
 			}
 		}
 		data_buffer_->MoveToNextModel();
 	}
-	window_->SetLogMessage("SurfaceBeenDrawn", "SurfaceBeenDrawn: " + std::to_string(counter));
+	if(!is_rendering_shadowMap) window_->SetLogMessage("SurfaceBeenDrawn", "SurfaceBeenDrawn: " + std::to_string(counter));
 }
 
-void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowMap) {
+void TaoRenderer::RasterizeTriangle(Vertex* vertex[3]) {
 	// 只绘制线框，不绘制像素，直接退出
 	if (render_frame_ && !render_pixel_) {
 		DrawWireFrame(vertex);
@@ -515,7 +430,7 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowM
 			// 准备为当前各像素的varying进行插值
 			// 准备为当前像素的各项 varying 进行插值
 
-			if (is_Rendering_ShadowMap) {
+			if (is_rendering_shadowMap) {
 				SetPixel(x, y, Vec4f(1.0f - depth));
 				std::cout << 1.0f-depth << std::endl;
 				continue; // 如果正在渲染阴影贴图，那么就不需要插值各项属性了，因为用不上pixelshader
@@ -565,7 +480,7 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowM
 				color = pixel_shader_(current_varyings_);
 			}
 			// 如果渲染阴影，判断该pixel的深度与深度缓冲中的值大小
-			if (render_shadow_) {
+			if (render_shadow_ && !is_rendering_skybox) {
 				Mat4x4f V = data_buffer_->GetUniformBuffer()->view_matrix;
 				Mat4x4f P = data_buffer_->GetUniformBuffer()->project_matrix;
 				// 计算该fragment的world pos
@@ -584,7 +499,6 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowM
 				// 该片元位于ShadowBuffer的坐标
 				Vec2i shadowScreenPos(0.f);
 				// 屏幕映射
-
 				shadowScreenPos.x = static_cast<int>((csPos.x + 1.0f) * static_cast<float>(shadow_buffer_width_ - 1) * 0.5f);
 				shadowScreenPos.y = static_cast<int>((csPos.y + 1.0f) * static_cast<float>(shadow_buffer_height_ - 1) * 0.5f);
 
@@ -669,6 +583,63 @@ void TaoRenderer::DrawLine(int x1, int y1, int x2, int y2, const Vec4f& color) c
 			SetPixel(x2, y2, color);
 		}
 	}
+}
+
+void TaoRenderer::DrawSkybox() {
+	if (data_buffer_->color_buffer_ == nullptr || skybox_shader_ == nullptr) return;
+
+	is_rendering_skybox = true;
+
+	UniformBuffer* uniform_buffer_ = data_buffer_->GetUniformBuffer();
+	Attributes* attributes_ = data_buffer_->attributes_;
+
+	// 将shader设置为skybox的shader
+	vertex_shader_ = skybox_shader_->vertex_shader_;
+	pixel_shader_ = skybox_shader_->pixel_shader_;
+
+	for (size_t i = 0; i < skybox_shader_->plane_vertex_.size() - 2; i++)
+	{
+		attributes_[0].position_os = skybox_shader_->plane_vertex_[0];
+		attributes_[1].position_os = skybox_shader_->plane_vertex_[i + 1];
+		attributes_[2].position_os = skybox_shader_->plane_vertex_[i + 2];
+
+		// 顶点变换
+		for (int k = 0; k < 3; k++) {
+			vertex_[k].context.varying_float.clear();
+			vertex_[k].context.varying_vec2f.clear();
+			vertex_[k].context.varying_vec3f.clear();
+			vertex_[k].context.varying_vec4f.clear();
+
+			// 执行顶点着色程序，返回裁剪空间中的顶点坐标，此时没有进行透视除法
+			vertex_[k].cs_position = vertex_shader_(k, vertex_[k].context);
+		}
+
+		Vertex* raster_vertex[3] = { &vertex_[0], &vertex_[1], &vertex_[2] };
+		// 执行后续顶点处理
+		for (int k = 0; k < 3; k++) {
+			Vertex* current_vertex = raster_vertex[k];
+
+			// 透视除法
+			current_vertex->w_reciprocal = 1.0f / current_vertex->cs_position.w;
+			current_vertex->cs_position *= current_vertex->w_reciprocal;
+
+			// 屏幕映射：计算屏幕坐标（窗口坐标。详见RTR4 章节2.3.4
+			current_vertex->screen_position_f.x = (current_vertex->cs_position.x + 1.0f) * static_cast<float>(frame_buffer_width_ - 1) * 0.5f;
+			current_vertex->screen_position_f.y = (current_vertex->cs_position.y + 1.0f) * static_cast<float>(frame_buffer_height_ - 1) * 0.5f;
+
+			// 计算整数屏幕坐标：d = floor(c)
+			current_vertex->screen_position_i.x = static_cast<int>(floor(current_vertex->screen_position_f.x));
+			current_vertex->screen_position_i.y = static_cast<int>(floor(current_vertex->screen_position_f.y));
+
+			//计算整数屏幕坐标：c = d + 0.5
+			current_vertex->screen_position_f.x = current_vertex->screen_position_i.x + 0.5f;
+			current_vertex->screen_position_f.y = current_vertex->screen_position_i.y + 0.5f;
+		}
+
+		RasterizeTriangle(raster_vertex);
+	}
+
+	is_rendering_skybox = false;
 }
 
 // 在颜色缓冲中绘制点

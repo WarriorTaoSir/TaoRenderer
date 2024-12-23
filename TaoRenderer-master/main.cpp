@@ -13,6 +13,7 @@
 /*
 	渲染器的入口
 */
+void HandleModelSkyboxSwitchEvents(Window* window, Scene* scene, TaoRenderer* mo_renderer);
 
 int main() {
 #pragma region 窗口初始化
@@ -71,14 +72,13 @@ int main() {
 	// 初始化shader
 	const auto blinn_phong_shader = new DefaultShader(uniform_buffer);
 	const auto pbr_shader = new PBRShader(uniform_buffer);
-	// const auto skybox_shader = new SkyBoxShader(uniform_buffer);
-	// 初始化阴影shader
+	const auto skybox_shader = new SkyBoxShader(uniform_buffer);
 	const auto shadow_shader = new ShadowShader(uniform_buffer);
 	// 初始化渲染器
 	const auto renderer = new TaoRenderer(width, height);
 	// 设置渲染状态
 	renderer->SetRenderState(false, true);	// 渲染线框以及填充像素
-	renderer->render_shadow_ = true;		// 渲染阴影
+	renderer->render_shadow_ = false;		// 渲染阴影
 
 	// 设置默认使用的shader
 	renderer->current_shader_type_ = ShaderType::kBlinnPhongShader;
@@ -93,8 +93,15 @@ int main() {
 
 #pragma region 渲染循环
 	while (!window->is_close_) {
+		HandleModelSkyboxSwitchEvents(window, scene, renderer);		// 切换天空盒和模型，切换线框渲染
+		// 清除上一帧的帧缓冲
+		renderer->ClearFrameBuffer(renderer->render_frame_ || renderer->render_pixel_, true);
+		data_buffer->UpdateInfoInScene(scene);
+#pragma region 按键响应
 		// 响应相机位置
 		camera->HandleInputEvents(); 
+		// 更新UniformBuffer
+		camera->UpdateUniformBuffer(data_buffer->GetUniformBuffer(), data_buffer->GetModelBeingRendered()->model_matrix_);
 		// 是否生成阴影
 		if (window->keys_['S']) renderer->render_shadow_ = true;
 		if (window->keys_['D']) renderer->render_shadow_ = false;
@@ -114,8 +121,8 @@ int main() {
 			pbr_shader->material_inspector_ = PBRShader::kMaterialInspectorShaded;
 			window->RemoveLogMessage("Material Inspector");
 		}
-
-		// 判断当前shader类型，设置渲染器的VS与PS
+#pragma endregion 
+		// 动态切换Shader，判断当前shader类型，设置渲染器的VS与PS
 		switch (renderer->current_shader_type_)
 		{
 			case kBlinnPhongShader:
@@ -132,23 +139,77 @@ int main() {
 				break;
 			default:;
 		}
-
-		// 清除帧缓冲
-		renderer->ClearFrameBuffer(renderer->render_frame_ || renderer->render_pixel_, true);
-
-#pragma region 渲染Model
 		// 设置shadow_shader
-		renderer->SetShadowVertexShader(shadow_shader->vertex_shader_);
+		renderer->SetShadowShader(shadow_shader);
+#pragma region 渲染Model
 		// 使用渲染器将深度信息绘制到ShadowBuffer里
 		renderer->DrawShadowMap();
 		renderer->ClearFrameBuffer(renderer->render_frame_ || renderer->render_pixel_, true);
 		// 使用渲染器将模型绘制到FrameBuffer里
 		renderer->DrawMesh();
 #pragma endregion 
+
+#pragma region 渲染Skybox
+		renderer->SetSkyboxShader(skybox_shader);
+
+		camera->UpdateSkyBoxUniformBuffer(data_buffer->GetUniformBuffer());
+		camera->HandleInputEvents();
+		camera->UpdateSkyboxMesh(skybox_shader);
+
+		renderer->DrawSkybox();
+#pragma endregion
 		// 在窗口展示渲染器的帧缓冲
 		window->WindowDisplay(data_buffer->color_buffer_);
 	}
 #pragma endregion 
 	
 	return 0;
+}
+
+
+void HandleModelSkyboxSwitchEvents(Window* window, Scene* scene, TaoRenderer* mo_renderer)
+{
+	if (window->can_press_keyboard_)
+	{
+		if (GetAsyncKeyState(VK_UP) & 0x8000)
+		{
+			scene->LoadPrevModel();
+			window->SetLogMessage("model_message", scene->current_model_->PrintModelInfo());
+			window->SetLogMessage("model_name", "model name: " + scene->current_model_->model_name_);
+			window->can_press_keyboard_ = false;
+
+		}
+		else if (GetAsyncKeyState(VK_DOWN) & 0x8000)
+		{
+			scene->LoadNextModel();
+			window->SetLogMessage("model_message", scene->current_model_->PrintModelInfo());
+			window->SetLogMessage("model_name", "model name: " + scene->current_model_->model_name_);
+			window->can_press_keyboard_ = false;
+		}
+		else if (GetAsyncKeyState(VK_LEFT) & 0x8000)
+		{
+			scene->LoadPrevIBLMap();
+			window->SetLogMessage("skybox_name", "skybox name: " + scene->current_iblmap_->skybox_name_);
+			window->can_press_keyboard_ = false;
+		}
+		else if (GetAsyncKeyState(VK_RIGHT) & 0x8000)
+		{
+			scene->LoadNextIBLMap();
+			window->SetLogMessage("skybox_name", "skybox name: " + scene->current_iblmap_->skybox_name_);
+			window->can_press_keyboard_ = false;
+		}
+		else if (window->keys_['0'])					// 切换渲染模式：线框渲染-像素渲染
+		{
+			if (mo_renderer->render_frame_)
+			{
+				mo_renderer->SetRenderState(false, true);
+			}
+			else
+			{
+				mo_renderer->SetRenderState(true, false);
+			}
+			window->can_press_keyboard_ = false;
+		}
+
+	}
 }

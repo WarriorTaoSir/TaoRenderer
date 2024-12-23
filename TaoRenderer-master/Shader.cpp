@@ -3,8 +3,37 @@
 /*
 	文件内容：
 	-Shader类的定义
-	-最近一次修改日期：2024.12.23
+	-最近一次修改日期：2024.12.24
 */
+
+#pragma region ToneMapping
+
+static float ACESToneMapping(float value)
+{
+	float a = 2.51f;
+	float b = 0.03f;
+	float c = 2.43f;
+	float d = 0.59f;
+	float e = 0.14f;
+	value = (value * (a * value + b)) / (value * (c * value + d) + e);
+	return Between(0.0f, 1.0f, value);
+}
+
+static float GammaCorrection(float value)
+{
+	return  pow(value, 1.0f / 2.2f);
+}
+
+static Vec3f& PostProcessing(Vec3f& color)
+{
+	for (int i = 0; i < 3; i++)
+	{
+		color[i] = ACESToneMapping(color[i]);
+	}
+	return color;
+}
+#pragma endregion
+
 #pragma region Shadow Shader
 Vec4f ShadowShader::VertexShaderFunction(int index, Varyings& output) const
 {
@@ -32,7 +61,6 @@ void ShadowShader::HandleKeyEvents()
 
 }
 #pragma endregion
-
 
 #pragma region Default Shader
 Vec4f DefaultShader::VertexShaderFunction(int index, Varyings& output) const
@@ -279,8 +307,33 @@ Vec4f PBRShader::PixelShaderFunction(Varyings& input) const
 
 	//——————————————————计算环境光照——————————————————//
 
-	// TODO
-	Vec3f radiance_ibl(0.f);
+	auto specular_cubemap_ = dataBuffer_->specular_cubemap_;
+	auto brdf_lut_ = dataBuffer_->brdf_lut_;
+	auto irradiance_cubemap_ = dataBuffer_->irradiance_cubemap_;
+
+	// 获取最大mipmap等级
+	int max_mipmap_level = SpecularCubeMap::max_mipmap_level_ - 1;
+	// 根据粗糙度获取高光mipmap等级
+	int specular_mipmap_level = roughness * max_mipmap_level + 0.5f;
+	// 计算反射向量
+	Vec3f reflected_view_dir = vector_reflect(view_dir, normal_ws);
+
+	Vec3f prefilter_specular_color = specular_cubemap_->prefilter_maps_[specular_mipmap_level]->Sample(reflected_view_dir);
+	
+	Vec2f lut_uv = { n_dot_v ,roughness };
+	Vec2f lut_sample = brdf_lut_->Sample2D(lut_uv).xy();
+
+	// 计算镜面高光的IBL
+	float specular_scale = lut_sample.x;
+	float specular_bias = lut_sample.y;
+	Vec3f specular = f0 * specular_scale + Vec3f(specular_bias);
+	Vec3f radiance_specular_ibl = prefilter_specular_color * specular;
+	
+	// 计算漫反射光的IBL
+	Vec3f irradiance = irradiance_cubemap_->Sample(normal_ws);
+	Vec3f radiance_diffuse_ibl = kd * irradiance * base_color;
+
+	Vec3f radiance_ibl = (radiance_diffuse_ibl + radiance_specular_ibl) * occlusion;
 
 
 	//——————————————————确定最终颜色——————————————————//
@@ -290,7 +343,7 @@ Vec4f PBRShader::PixelShaderFunction(Varyings& input) const
 	Vec3f display_color;
 	switch (material_inspector_)
 	{
-		case kMaterialInspectorShaded:			display_color = shaded_color;	break;
+		case kMaterialInspectorShaded:			display_color = PostProcessing(shaded_color);	break;
 		case kMaterialInspectorBaseColor:		display_color = base_color;		break;
 		case kMaterialInspectorNormal:			display_color = normal_ws;		break;
 		case kMaterialInspectorWorldPosition:	display_color = position_ws;	break;
@@ -328,3 +381,24 @@ void PBRShader::HandleKeyEvents()
 	}
 }
 #pragma endregion
+
+#pragma region SkyBox
+
+Vec4f SkyBoxShader::VertexShaderFunction(int index, Varyings& output) const
+{
+	auto uniform_buffer_ = dataBuffer_->GetUniformBuffer();
+	auto attributes_ = dataBuffer_->attributes_;
+	Vec4f position_cs = uniform_buffer_->mvp_matrix * attributes_[index].position_os.xyz1();
+	const Vec3f position_ws = (uniform_buffer_->model_matrix * attributes_[index].position_os.xyz1()).xyz();
+
+	output.varying_vec3f[VARYING_POSITION_WS] = position_ws;
+	return position_cs;
+}
+
+Vec4f SkyBoxShader::PixelShaderFunction(Varyings& input) const
+{
+	Vec3f position_ws = input.varying_vec3f[VARYING_POSITION_WS];		// 世界空间坐标
+	return  dataBuffer_->skybox_cubemap_->Sample(position_ws).xyz1();
+}
+
+#pragma endregion 

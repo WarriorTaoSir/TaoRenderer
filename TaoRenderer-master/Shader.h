@@ -1,8 +1,7 @@
 #pragma once
 
 #include "Math.h"
-#include "Window.h"
-#include "Model.h"
+
 #include "DataBuffer.h"
 #include <map>
 #include <functional>
@@ -135,7 +134,14 @@ public:
 class PBRShader final :public IShader
 {
 public:
-	PBRShader(UniformBuffer* uniform_buffer) : IShader(uniform_buffer) {}
+	PBRShader(UniformBuffer* uniform_buffer) : IShader(uniform_buffer) {
+		// 非金属的F0值默认为0.04
+		dielectric_f0_ = Vec3f(0.04f);
+		material_inspector_ = kMaterialInspectorShaded;
+
+		// 是否使用LUT
+		use_lut_ = false;
+	}
 	Vec4f VertexShaderFunction(int index, Varyings& output) const override;
 	Vec4f PixelShaderFunction(Varyings& input) const override;
 	void HandleKeyEvents() override;    // 材质查看器
@@ -174,12 +180,34 @@ public:
 
 	MaterialInspector material_inspector_;
 
-	Vec3f dielectric_f0_;
+	Vec3f dielectric_f0_; // 电介质F0值
 
-	//CubeMap* irradiance_cubemap_;			// 环境irradiance贴图
-	//SpecularCubeMap* specular_cubemap_;		// 高光cubemap
+	bool use_lut_;	      // 是否使用Lut							
+};
 
-	Texture* brdf_lut_;
+class SkyBoxShader final :public IShader
+{
+public:
+	SkyBoxShader(UniformBuffer* uniform_buffer) : IShader(uniform_buffer)
+	{
 
-	bool use_lut_;								
+	}
+
+	Vec4f VertexShaderFunction(int index, Varyings& output) const override;
+	Vec4f PixelShaderFunction(Varyings& input) const override;
+	void HandleKeyEvents() override {};
+
+	enum VaryingAttributes
+	{
+		VARYING_POSITION_WS = 0,		// 世界空间坐标
+	};
+
+public:
+
+	std::vector<Vec3f> plane_vertex_ = {
+		{0.5f,0.5f,0.5f},			// 右上角
+		{-0.5f,0.5f,0.5f},			// 左上角
+		{-0.5f,-0.5f,0.5f},		// 左下角
+		{0.5f,-0.5f,0.5f} };		// 右下角
+	std::vector<int> plane_index_ = { 0,1,2,     0,2,3 };
 };

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Math.h"
-#include "Model.h"
+#include <functional>
+#include <cstdint>
+
 #include "Shader.h"
-#include "Scene.h"
 #include "Window.h"
 #include "DataBuffer.h"
 
@@ -96,6 +96,7 @@ public:
 	bool render_pixel_;			// 是否填充像素
 	bool render_shadow_;		// 是否渲染阴影
 
+
 	// 渲染中使用的临时数据
 	Vertex vertex_[3];
 	Vertex* clip_vertex_[4];	// 经过近平面clip之后的顶点
@@ -110,10 +111,17 @@ private:
 	EdgeEquation edge_equation_[3];
 	// 当前顶点的varyings
 	Varyings current_varyings_;
-	// VS 与 PS
+	// object VS & PS
 	VertexShader vertex_shader_;
 	PixelShader pixel_shader_;
-	VertexShader shadow_vertex_shader_;
+	// shadow VS
+	ShadowShader* shadow_shader_;
+	// skybox VS & PS
+	SkyBoxShader* skybox_shader_;
+
+
+	bool is_rendering_shadowMap; // 是否正在渲染阴影贴图
+	bool is_rendering_skybox;    // 是否正在渲染天空盒
 
 public:
 	TaoRenderer() = default;
@@ -137,7 +145,10 @@ public:
 	// 设置片元着色器
 	void SetPixelShader(const PixelShader& ps) { pixel_shader_ = ps; }
 	// 设置阴影顶点着色器
-	void SetShadowVertexShader(const VertexShader& vs) { shadow_vertex_shader_ = vs; }
+	void SetShadowShader(ShadowShader* ss) { shadow_shader_ = ss; }
+	// 设置天空盒顶点着色器
+	void SetSkyboxShader(SkyBoxShader* ss) { skybox_shader_ = ss; }
+
 
 	// 设置背景色
 	void SetBackgroundColor(const Vec4f& color) { color_background_ = color; }
@@ -159,7 +170,8 @@ public:
 	void SetPixel(const int x, const int y, const Vec4f& cc) const;
 	void SetPixel(const int x, const int y, const Vec3f& cc) const;
 
-	// TODO：绘制天空盒
+	// 绘制天空盒
+	void DrawSkybox();
 
 	// 绘制网格体
 	void DrawMesh();
@@ -174,7 +186,7 @@ private:
 	// 绘制线框
 	void DrawWireFrame(Vertex* vertex[3]) const;
 	// 光栅化三角形
-	void RasterizeTriangle(Vertex* vertex[3], bool is_Rendering_ShadowMap);
+	void RasterizeTriangle(Vertex* vertex[3]);
 	// 用平面裁剪三角形
 	int ClipWithPlane(ClipPlane clip_plane, Vertex vertex[3]);
 	// 获取直线与平面的交点

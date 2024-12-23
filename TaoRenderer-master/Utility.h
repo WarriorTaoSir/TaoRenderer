@@ -1,8 +1,14 @@
 #pragma once
 
+#include <tchar.h>   
 #include <iostream>
+
+#include <string>
 #include <fstream>
 #include <io.h>
+
+#include "Window.h"
+#pragma comment(lib, "Setupapi.lib")
 
 using std::string;
 using std::ifstream;
@@ -59,9 +65,63 @@ inline string GetFilePathByFileName(const string& file_folder, const string& fil
 }
 
 // 判断文件是否存在
-inline bool DoesFileExist(const string& file_name)
+inline bool CheckFileExist(const std::string& file_name)
 {
-	ifstream f(file_name.c_str()); // 看该c_str是否能获取到输入流，能则文件存在
+	std::ifstream f(file_name.c_str());
 	return f.good();
 }
+#pragma endregion
+
+
+#pragma region cmgen
+inline void ExecuteProcess(const std::string& command_str)
+{
+	STARTUPINFO si;
+	PROCESS_INFORMATION pi;
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	ZeroMemory(&pi, sizeof(pi));
+	const LPTSTR command = _tcsdup(command_str.c_str());
+
+	if (!CreateProcess(
+		nullptr,		// No module name (use command line)
+		command,		// Command line
+		nullptr,		// Process handle not inheritable
+		nullptr,		// Thread handle not inheritable
+		FALSE,          // Set handle inheritance to FALSE
+		0,              // No creation flags
+		nullptr,        // Use parent's environment block
+		nullptr,        // Use parent's starting directory 
+		&si,            // Pointer to STARTUPINFO structure
+		&pi)			// Pointer to PROCESS_INFORMATION structure
+		)
+	{
+		std::cout << "执行命令失败：" + command_str << std::endl;
+		exit(EXIT_FAILURE);
+	}
+
+	// Wait until child process exits.
+	WaitForSingleObject(pi.hProcess, INFINITE);
+
+	// Close process and thread handles. 
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
+}
+
+inline void GenerateCubeMap(std::string skybox_path) {
+
+	std::string cmgen_path = "../tools/cmgen.exe";
+	std::string output_path = GetFileFolder(skybox_path);
+	std::string skybox_file_name = GetFileNameWithoutExtension(skybox_path);
+
+	std::string irradiance_command = cmgen_path + " --format=hdr --ibl-irradiance=" + output_path + " " + skybox_path;
+	std::string specular_command = cmgen_path + " --format=hdr --size=512 --ibl-ld=" + output_path + " " + skybox_path;
+	std::string lut_command = cmgen_path + " --ibl-dfg=" + output_path + "/" + skybox_file_name + "/brdf_lut.hdr";
+
+	ExecuteProcess(irradiance_command);
+	ExecuteProcess(specular_command);
+	ExecuteProcess(lut_command);
+
+}
+
 #pragma endregion

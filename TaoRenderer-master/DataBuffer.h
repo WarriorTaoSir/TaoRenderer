@@ -1,5 +1,5 @@
 #pragma once
-#include "model.h"
+#include "Scene.h"
 
 /*
 	文件内容：
@@ -50,6 +50,14 @@ public:
 	float** depth_buffer_;		// 渲染器深度缓存
 	float height_, width_;		// 渲染帧宽高
 	std::vector<Model*> model_list_;	// 要渲染的模型列表
+
+	// IBL计算相关
+	CubeMap* irradiance_cubemap_;
+	SpecularCubeMap* specular_cubemap_;
+	Texture* brdf_lut_;
+
+	// 天空盒计算相关
+	CubeMap* skybox_cubemap_;
 private:
 	UniformBuffer* uniform_buffer_;
 private:
@@ -65,4 +73,5 @@ public:
 	void CopyShadowBuffer();
 	void MoveToNextModel();
 	Model* GetModelBeingRendered();
+	void UpdateInfoInScene(Scene* scene);
 };
