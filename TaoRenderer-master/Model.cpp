@@ -217,9 +217,9 @@ Model::Model(vector<Vec3f>& vertex, const vector<int>& index)
 
 string Model::PrintModelInfo()
 {
-	const string model_message = 
-		"vertex count: " + std::to_string(vertex_number_) +
-		"  face count: " + std::to_string(face_number_) + "\n";
+	const string model_message =
+		"vertex count: " + std::to_string(vertex_number_);
+		//"  face count: " + std::to_string(face_number_) + "\n";
 
 	return model_message;
 }

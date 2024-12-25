@@ -7,7 +7,7 @@
 /*
 	文件内容：
 	-渲染器类的定义
-	-最近一次修改日期：2024.12.18
+	-最近一次修改日期：2024.12.25
 */
 
 #pragma region 初始化与清除
@@ -424,6 +424,7 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3]) {
 
 			// 保证深度缓存的深度为该像素位置离摄像机最近的片元
 			if (1.0f - depth <= data_buffer_->depth_buffer_[y][x]) continue;
+			float origin_depth_value = data_buffer_->depth_buffer_[y][x];	// 如果后续该片元透明度为0，被丢弃时，深度缓冲需要被重设
 			data_buffer_->depth_buffer_[y][x] = 1.0f - depth;
 
 
@@ -432,7 +433,6 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3]) {
 
 			if (is_rendering_shadowMap) {
 				SetPixel(x, y, Vec4f(1.0f - depth));
-				std::cout << 1.0f-depth << std::endl;
 				continue; // 如果正在渲染阴影贴图，那么就不需要插值各项属性了，因为用不上pixelshader
 			}
 
@@ -476,8 +476,12 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3]) {
 
 			// 执行像素着色器
 			Vec4f color = { 1.0f };
-			if (pixel_shader_ != nullptr) {
-				color = pixel_shader_(current_varyings_);
+			if (pixel_shader_ != nullptr) color = pixel_shader_(current_varyings_);
+
+			// 如果该片元透明度为0，则丢弃片元
+			if (color.a == 0) {
+				data_buffer_->depth_buffer_[y][x] = origin_depth_value;
+				continue;
 			}
 			// 如果渲染阴影，判断该pixel的深度与深度缓冲中的值大小
 			if (render_shadow_ && !is_rendering_skybox) {
@@ -514,6 +518,7 @@ void TaoRenderer::RasterizeTriangle(Vertex* vertex[3]) {
 					color *= 0.3f;
 				}
 			}
+			
 			SetPixel(x, y, color);
 		}
 	}

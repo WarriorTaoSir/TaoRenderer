@@ -30,13 +30,13 @@ int main() {
 
 	auto model = scene->current_model_; // 获取当前模型
 	
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < scene->total_model_count_; i++) {
 		data_buffer->model_list_.push_back(scene->current_model_);
 		scene->LoadNextModel();
 	}
 
 	window->SetLogMessage("model_message", model->PrintModelInfo());
-	window->SetLogMessage("model_name", "model name: " + scene->current_model_->model_name_);
+	// window->SetLogMessage("model_name", "model name: " + scene->current_model_->model_name_);
 	// window->SetLogMessage("skybox_name", "skybox name: " + scene->current_iblmap_->skybox_name_);
 #pragma endregion
 
@@ -81,7 +81,7 @@ int main() {
 	renderer->render_shadow_ = false;		// 渲染阴影
 
 	// 设置默认使用的shader
-	renderer->current_shader_type_ = ShaderType::kBlinnPhongShader;
+	renderer->current_shader_type_ = ShaderType::kPbrShader;
 
 	// 设置窗口信息
 	if(camera->is_perspective_)
@@ -175,7 +175,7 @@ void HandleModelSkyboxSwitchEvents(Window* window, Scene* scene, TaoRenderer* mo
 		{
 			scene->LoadPrevModel();
 			window->SetLogMessage("model_message", scene->current_model_->PrintModelInfo());
-			window->SetLogMessage("model_name", "model name: " + scene->current_model_->model_name_);
+			//window->SetLogMessage("model_name", "model name: " + scene->current_model_->model_name_);
 			window->can_press_keyboard_ = false;
 
 		}
@@ -183,7 +183,7 @@ void HandleModelSkyboxSwitchEvents(Window* window, Scene* scene, TaoRenderer* mo
 		{
 			scene->LoadNextModel();
 			window->SetLogMessage("model_message", scene->current_model_->PrintModelInfo());
-			window->SetLogMessage("model_name", "model name: " + scene->current_model_->model_name_);
+			//window->SetLogMessage("model_name", "model name: " + scene->current_model_->model_name_);
 			window->can_press_keyboard_ = false;
 		}
 		else if (GetAsyncKeyState(VK_LEFT) & 0x8000)

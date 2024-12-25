@@ -11,14 +11,15 @@
 /*
 	文件内容：
 	-贴图类的成员函数的定义
-	-最近一次修改日期：2024.12.24
+	-最近一次修改日期：2024.12.25
 */
 
 #pragma region Texture
 // 以文件路径字符串为参数的构造函数
 Texture::Texture(const string& file_name) 
-{
-	texture_data_ = stbi_load(file_name.c_str(), &texture_width_, &texture_height_, &texture_channels_, STBI_default);
+{	
+
+	texture_data_ = stbi_load(file_name.c_str(), &texture_width_, &texture_height_, &texture_channels_, 4);
 	has_data_ = texture_data_ == nullptr ? false : true;
 }
 
@@ -55,11 +56,11 @@ ColorRGBA Texture::GetPixelColor(int x, int y) const {
 	y = Between(0, texture_height_ - 1, y);
 	if (x >= 0 && x < texture_width_ &&
 		y >= 0 && y < texture_height_) {
-		const uint8_t* pixel_offset = texture_data_ + (x + y * texture_width_) * texture_channels_;
+		const uint8_t* pixel_offset = texture_data_ + (x + y * texture_width_) * 4;
 		color.r = pixel_offset[0] / 255.0f;
 		color.g = pixel_offset[1] / 255.0f;
 		color.b = pixel_offset[2] / 255.0f;
-		color.a = texture_channels_ > 4 ? pixel_offset[3] / 255.0f : 1.0f;
+		color.a = pixel_offset[3] / 255.0f;
 	}
 	return color;
 }

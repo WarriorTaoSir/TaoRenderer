@@ -3,7 +3,7 @@
 /*
 	文件内容：
 	-Shader类的定义
-	-最近一次修改日期：2024.12.24
+	-最近一次修改日期：2024.12.25
 */
 
 #pragma region ToneMapping
@@ -104,23 +104,27 @@ Vec4f DefaultShader::PixelShaderFunction(Varyings& input) const {
 	Vec3f light_dir = vector_normalize(-uniform_buffer_->light_direction);
 	Vec3f view_dir = vector_normalize(uniform_buffer_->camera_position - position_ws);
 
-	Vec3f display_color(0.f);
+	Vec4f display_color(0.f, 0.f, 0.f, 1.f);
 	
 	// 漫反射
-	Vec3f base_color = model->base_color_map_->Sample2D(uv).xyz();
-	Vec3f diffuse = light_color * base_color * Saturate(vector_dot(light_dir, normal_ws));
+	Vec4f base_color = model->base_color_map_->Sample2D(uv);
+
+	if (base_color.a == 0.0f) return Vec4f(0.f, 0.f, 0.f, 0.f);
+
+	Vec3f diffuse = light_color * base_color.xyz() * Saturate(vector_dot(light_dir, normal_ws));
 	// 高光
 	Vec3f half_dir = vector_normalize(view_dir + light_dir);
 	float specular_intensity = pow(Saturate(vector_dot(normal_ws, half_dir)), 128);
 	Vec3f specular = light_color * specular_intensity;
 	// 环境光
-	Vec3f ambient_color = base_color * Vec3f(0.1f);
+	Vec3f ambient_color = base_color.xyz() * Vec3f(0.1f);
 
 	// Diffuse + Specular + Ambient = Final Color
 	Vec3f shaded_color = ambient_color + diffuse + specular;
 
-	display_color = shaded_color;
-	return display_color.xyz1();
+	display_color = shaded_color.xyz1();	// 设置片元颜色
+
+	return display_color;
 }
 
 void DefaultShader::HandleKeyEvents()
@@ -270,7 +274,9 @@ Vec4f PBRShader::PixelShaderFunction(Varyings& input) const
 	Vec3f emission(0.0f);
 	if (model_->emission_map_->has_data_)
 		emission = model_->emission_map_->Sample2D(uv).xyz();		// 自发光（没有则默认为0.0，全黑）
-	Vec3f base_color = model_->base_color_map_->Sample2D(uv).xyz();	// 非金属部分为albedo，金属部分为F0
+	Vec4f base_color = model_->base_color_map_->Sample2D(uv);	// 非金属部分为albedo，金属部分为F0
+
+	if (base_color.a == 0) return Vec4f(0.f, 0.f, 0.f, 0.f);
 
 	Vec3f light_color = uniform_buffer_->light_color;						// 光源颜色 
 	Vec3f light_dir = vector_normalize(-uniform_buffer_->light_direction);	// 光源方向 L
@@ -289,7 +295,7 @@ Vec4f PBRShader::PixelShaderFunction(Varyings& input) const
 	//——————————————————计算直接光照——————————————————//
 
 	// 镜面高光部分
-	Vec3f f0 = vector_lerp(dielectric_f0_, base_color, metallic);					// 获取材质的F0值
+	Vec3f f0 = vector_lerp(dielectric_f0_, base_color.xyz(), metallic);					// 获取材质的F0值
 	Vec3f F = FresnelSchlickApproximation(half_dir, light_dir, f0);					// 菲涅尔项， F项
 
 	float D = D_GGX_Original(half_dir, normal_ws, roughness);			            // 法线分布项，D项
@@ -300,7 +306,7 @@ Vec4f PBRShader::PixelShaderFunction(Varyings& input) const
 
 	// 漫反射部分
 	Vec3f kd = (Vec3f(1.0f) - F) * (1 - metallic);
-	Vec3f lambertian_brdf = base_color;
+	Vec3f lambertian_brdf = base_color.xyz();
 
 	Vec3f radiance_direct = (kd * lambertian_brdf + cook_torrance_brdf) * light_color * n_dot_l;
 
@@ -331,7 +337,7 @@ Vec4f PBRShader::PixelShaderFunction(Varyings& input) const
 	
 	// 计算漫反射光的IBL
 	Vec3f irradiance = irradiance_cubemap_->Sample(normal_ws);
-	Vec3f radiance_diffuse_ibl = kd * irradiance * base_color;
+	Vec3f radiance_diffuse_ibl = kd * irradiance * base_color.xyz();
 
 	Vec3f radiance_ibl = (radiance_diffuse_ibl + radiance_specular_ibl) * occlusion;
 
@@ -344,13 +350,13 @@ Vec4f PBRShader::PixelShaderFunction(Varyings& input) const
 	switch (material_inspector_)
 	{
 		case kMaterialInspectorShaded:			display_color = PostProcessing(shaded_color);	break;
-		case kMaterialInspectorBaseColor:		display_color = base_color;		break;
-		case kMaterialInspectorNormal:			display_color = normal_ws;		break;
-		case kMaterialInspectorWorldPosition:	display_color = position_ws;	break;
-		case kMaterialInspectorRoughness:		display_color = roughness;		break;
-		case kMaterialInspectorMetallic:		display_color = metallic;		break;
-		case kMaterialInspectorOcclusion:		display_color = occlusion;		break;
-		case kMaterialInspectorEmission:		display_color = emission;		break;
+		case kMaterialInspectorBaseColor:		display_color = base_color.xyz();				break;
+		case kMaterialInspectorNormal:			display_color = normal_ws;						break;
+		case kMaterialInspectorWorldPosition:	display_color = position_ws;					break;
+		case kMaterialInspectorRoughness:		display_color = roughness;						break;
+		case kMaterialInspectorMetallic:		display_color = metallic;						break;
+		case kMaterialInspectorOcclusion:		display_color = occlusion;						break;
+		case kMaterialInspectorEmission:		display_color = emission;						break;
 
 		default:								display_color = shaded_color;
 	}
