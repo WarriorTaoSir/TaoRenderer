@@ -1,38 +1,147 @@
 # TaoRenderer
-1. 项目概览
-类型: 纯 C++ 编写的软光栅渲染器 (Software Rasterizer)。
-环境: Visual Studio 工程 (Win32 API)。
-核心逻辑: 不依赖 OpenGL/DirectX 等图形 API，手动实现了从顶点处理到像素填充的完整管线。
-2. 核心模块与文件结构
-所有源码均位于 TaoRenderer-master 目录下：
+TaoRenderer is a software rasterization renderer based on c++ 20. The main purpose of the project is to learn the principles of modern rendering. Currently only Windows is supported (uses win32 to display window and image)
 
-平台与入口
-main.cpp: 程序的入口点。
-初始化 Window, TaoRenderer, Scene。
-包含主循环 (Main Loop)，处理输入消息（如按键切换渲染模式 SetRenderState 或移动相机）。
-Window.h/cpp: 封装了 Windows API。
-负责创建窗口、处理系统消息 (WinProc)。
-负责将渲染好的 Framebuffer 显示到屏幕上。
-渲染核心 (Core)
-TaoRenderer.h/cpp: 渲染管线的核心类。
-提供了 DrawLine (画线), SetPixel (画点) 等基础绘图函数。
-实现了光栅化逻辑，包括三角形遍历、重心坐标计算等。
-调度着色器 (Shader) 进行顶点和片元处理。
-DataBuffer.h/cpp: 数据管理。
-管理 Framebuffer (颜色缓冲区) 和 DepthBuffer (深度缓冲区)。
-存储全局渲染状态（如 Uniforms, MVP 矩阵）。
-Shader.h/cpp: 可编程着色器的抽象。
-定义了 VertexShader (顶点着色) 和 FragmentShader (片元着色) 的接口。
-支持多态，允许实现不同的着色效果（如 Phong, Blinn-Phong 等）。
-场景管理 (Scene)
-Scene.h/cpp: 场景图管理，包含多个模型和光源。
-Model.h/cpp: 3D 模型类，负责加载网格数据 (Mesh) 和材质。
-Camera.h/cpp: 摄像机类，负责计算观察矩阵 (View Matrix) 和处理视角漫游。
-Texture.h/cpp: 纹理加载与采样逻辑。
-📐 数学基础 (Math)
-Math.h, Matrix.h, Vector.h: 自定义的数学库。
-实现了向量 (Vec3, Vec4) 和 矩阵 (Mat4x4) 的运算。
-提供了透视投影、视图变换等图形学算法所需的数学支持。
-![Uploading 11.2_converted.gif…]()
-![11 3_converted](https://github.com/user-attachments/assets/fe5ef5d1-6645-437b-8215-973c1b98ab74)
-![9 3_converted](https://github.com/user-attachments/assets/d9c75b8a-d45e-456f-8a93-5ab52ad1f712)
+
+## Previews
+
+### Wireframe && Clip
+![Switch Assets and Wireframe](images/12.2_converted.gif)
+
+### Blinn-Phong 
+![Camera Control](images/9.3_converted.gif)
+
+### PBR + IBL
+![PBR Material Inspector](images/10.1_converted.gif)
+
+### Furina with only BaseColor
+![Blinn-Phong Material Inspector](images/11.2_converted.gif)
+
+### SantaTree
+![Switch Rendering Mode](images/11.3_converted.gif)
+
+
+## Feature
+### simple math library
+* vector library
+* matrix library
+* utility functions
+
+### Programmable shader (writing in c++)
+* vertex shader
+* pixel shader
+
+### culling & clipping
+* back-face culling: use the normal of the triangle plane
+* homogeneous clipping: clip is performed only for the near clipping plane
+
+### z-buffer
+* depth testing
+* reverse z-buffer
+
+### Edge Equation
+* traversal triangle using a bounding rectangle
+* the Edge Equation is used to perform the inside test of the triangle
+
+### Perspective correct interpolation
+* use Top-Left rule to handle boundary pixels
+
+### texture sampling
+* use bilinear interpolation to get better texture effect
+* cubemap sampling
+
+### orbital camera controls
+* Orbit
+* Pan
+* Zoom
+* Reset
+
+### tangent space normal mapping
+### ACES tone mapping
+### shading model
+* Blinn-Phong shading
+* Physically Based Shading (use Cook-torrance BRDF)
+
+### material inspector
+* use keyboard number to switch material inspector
+* Blinn-Phong material inspector
+* Physically Based Shading material inspector
+
+### wireframe rendering
+### image-based lighting (IBL)
+* irradiance map
+* prefilter specular environment map
+* use cmgen to automatic generate the IBL resource
+
+### skybox
+* place a plane on the far clipping plane
+* switch the skybox at runtime
+
+### other control
+* switch the shading model at runtime
+* switch the model at runtime
+
+
+## Build
+A CMakeLists.txt file is provided for generating project files using CMake
+
+### Visual Studio
+```bash
+mkdir build
+cd build
+cmake -G "Visual Studio 17 2022" ..
+start Renderer.sln
+```
+
+## Control
+### Camera Control
+* Orbit: left mouse button
+* Pan: right mouse button
+* Zoom: mouse wheel \ Q E
+* move model: W A S D
+* Reset Camera: Space
+
+### Material Inspector Control
+* Blinn-Phong shading: keyboard number 1-7
+* Physically Based Shading: keyboard number 1-8
+* Wireframe rendering: keyboard number 0
+
+### Assets Control
+* Switch model: keyboard up/down
+* Switch skybox: keyboard left/right
+
+### skybox
+* place a plane on the far clipping plane
+* switch the skybox at runtime
+
+### other control
+* switch the shading model at runtime
+* switch the model at runtime
+
+
+## Build
+A CMakeLists.txt file is provided for generating project files using CMake
+
+### Visual Studio
+```bash
+mkdir build
+cd build
+cmake -G "Visual Studio 17 2022" ..
+start Renderer.sln
+```
+
+## Control
+### Camera Control
+* Orbit: left mouse button
+* Pan: right mouse button
+* Zoom: mouse wheel \ Q E
+* move model: W A S D
+* Reset Camera: Space
+
+### Material Inspector Control
+* Blinn-Phong shading: keyboard number 1-7
+* Physically Based Shading: keyboard number 1-8
+* Wireframe rendering: keyboard number 0
+
+### Assets Control
+* Switch model: keyboard up/down
+* Switch skybox: keyboard left/right
