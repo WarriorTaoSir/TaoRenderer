@@ -117,31 +117,3 @@ start Renderer.sln
 * switch the shading model at runtime
 * switch the model at runtime
 
-
-## Build
-A CMakeLists.txt file is provided for generating project files using CMake
-
-### Visual Studio
-```bash
-mkdir build
-cd build
-cmake -G "Visual Studio 17 2022" ..
-start Renderer.sln
-```
-
-## Control
-### Camera Control
-* Orbit: left mouse button
-* Pan: right mouse button
-* Zoom: mouse wheel \ Q E
-* move model: W A S D
-* Reset Camera: Space
-
-### Material Inspector Control
-* Blinn-Phong shading: keyboard number 1-7
-* Physically Based Shading: keyboard number 1-8
-* Wireframe rendering: keyboard number 0
-
-### Assets Control
-* Switch model: keyboard up/down
-* Switch skybox: keyboard left/right
